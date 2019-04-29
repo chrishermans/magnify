@@ -7,7 +7,7 @@ Magnify10 is a screen magnification lens for Windows 10. It is designed to be a 
 
 ## How does it work?
 
-It uses the Windows' [Magnification API](https://docs.microsoft.com/en-us/windows/desktop/api/_magapi/) for the main functionality, and Win32 APIs to control the window.
+It uses the Windows [Magnification API](https://docs.microsoft.com/en-us/windows/desktop/api/_magapi/) for the main functionality, and Win32 APIs to control the window.
 
 This program is designed to run in the background and consumes very little resources when not active. 
 After you run it, an icon will appear in the notification area.
@@ -31,7 +31,7 @@ Below is a list of global keyboard shortcut commands to control with the lens.
 | Left Windows Key + c | Decrease lens size (Up to screen size) |
 
 ### Pan functionality
-Some times you might want to move the lens source area without moving the mouse. This can be done by panning in any direction.
+Sometimes it can be useful to move the lens source area without moving the mouse. This can be done by panning in any direction.
 
 | Keyboard shortcut | Description |
 | --- | --- |
@@ -61,4 +61,4 @@ To sign and run an executable, it requires a certificate to be generated and ins
 1. Browse to the location of the .exe file
 2. Execute: `SignTool sign /v /s PrivateCertStore /n "Test Certificate - For Internal Use Only" /t http://timestamp.verisign.com/scripts/timestamp.dll app.exe` where app.exe is the executable to sign.
 
-Once the executable is signed, it can be placed in the Program Files directory within a subdirectory, and run from there.
+Once the executable is signed, place it in the `Program Files` directory or a subdirectory, and run it from there.
