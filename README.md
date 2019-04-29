@@ -3,7 +3,7 @@ Magnification Lens.
 
 ## What is this?
 
-Magnify10 is a screen magnification lens for Windows 10. It is designed to be a lightweight, stripped down magnifier that can be toggle on/off quickly and easily. It is an alternative the Windows default Magnifier app.
+Magnify10 is a screen magnification lens for Windows 10. It is designed to be a lightweight, stripped down magnifier that can be toggled on/off quickly and easily. It is an alternative the Windows default Magnifier app.
 
 <img width="600" alt="mag10_lens" src="https://user-images.githubusercontent.com/49893805/56876155-3e54dc00-69fa-11e9-9c6f-252fb1983bf1.PNG">
 
