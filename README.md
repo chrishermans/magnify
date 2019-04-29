@@ -5,12 +5,16 @@ Magnification Lens.
 
 Magnify10 is a screen magnification lens for Windows 10. It is designed to be a lightweight, stripped down magnifier that can be toggle on/off quickly and easily. It is an alternative the Windows default Magnifier app.
 
+<img width="600" alt="mag10_lens" src="https://user-images.githubusercontent.com/49893805/56876155-3e54dc00-69fa-11e9-9c6f-252fb1983bf1.PNG">
+
 ## How does it work?
 
 It uses the Windows [Magnification API](https://docs.microsoft.com/en-us/windows/desktop/api/_magapi/) for the main functionality, and Win32 APIs to control the window.
 
 This program is designed to run in the background and consumes very little resources when not active. 
 After you run it, an icon will appear in the notification area.
+
+<img width="166" alt="mag10_icon" src="https://user-images.githubusercontent.com/49893805/56876198-94298400-69fa-11e9-8f84-bae10a52729c.PNG">
 
 It relies a low level keyboard hook to set up global hotkeys that are used to interact with the functionality.
 
