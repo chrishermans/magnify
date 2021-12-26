@@ -8,6 +8,7 @@
 #include "Resource.h"
 
 
+
 #pragma region Constants
 
 // Magnification lens refresh interval - Should be as low as possible to match monitor refresh rate.
