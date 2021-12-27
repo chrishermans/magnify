@@ -4,7 +4,9 @@
 
 class MagWindow
 {
-private:
+
+public:
+
     HWND _hwnd;
     float _magFactor;
     POINT _windowPosition;
@@ -36,7 +38,6 @@ private:
         return MagSetWindowTransform(_hwnd, &matrix);
     }
 
-public:
     MagWindow() {}
     MagWindow(float magFactor, POINT windowPosition, SIZE windowSize)
     {
