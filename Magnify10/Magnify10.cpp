@@ -34,9 +34,6 @@ const int           PAN_INCREMENT_VERTICAL = 75;
 
 #pragma region Variables
 
-float               magnificationFactor = 2.0f;
-float               newMagnificationFactor = magnificationFactor; // Temp mag factor to store change during update
-
 SIZE                screenSize;
 SIZE                lensSize; // Size in pixels of the lens (host window)
 POINT               lensPosition; // Top left corner of the lens (host window)
@@ -59,7 +56,7 @@ const TCHAR         WindowClassName[] = TEXT("MagnifierWindow");
 // Window handles
 HWND                hwndHost;
 
-MagWindowManager    magManager;
+MagWindowManager*   magManager;
 
 // Show magnifier or not
 BOOL                enabled;
@@ -100,7 +97,6 @@ PTP_TIMER           refreshTimer;
 
 // Forward declarations. 
 ATOM                RegisterHostWindowClass(HINSTANCE hInstance);
-BOOL                SetupMagnifierManager(HINSTANCE hInst);
 BOOL                SetupHostWindow(HINSTANCE hinst);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK    LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
@@ -127,22 +123,11 @@ int APIENTRY WinMain(
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     InitScreenDimensions();
 
-    if (!MagInitialize())
-    {
-        return 0;
-    }
-    if (!SetupHostWindow(hInstance)) 
-    {
-        return 0;
-    }
-    if (!SetupMagnifierManager(hInstance)) 
-    {
-        return 0;
-    }
-    if (!UpdateWindow(hwndHost)) 
-    {
-        return 0; 
-    }
+    if (!MagInitialize()) { return 0; }
+    if (!SetupHostWindow(hInstance)) { return 0; }
+    magManager = new MagWindowManager(lensSize);
+    if (!magManager->Create(hInstance, hwndHost)) { return 0; }
+    if (!UpdateWindow(hwndHost)) { return 0; }
 
 
     // Start as disabled
@@ -197,9 +182,10 @@ int APIENTRY WinMain(
     SetThreadpoolTimer(refreshTimer, nullptr, 0, 0);
     Shell_NotifyIcon(NIM_DELETE, &nid);
     MagUninitialize();
-    magManager.DestroyWindows();
+    magManager->DestroyWindows();
     DestroyWindow(hwndHost);
 
+    delete magManager;
     return (int)msg.wParam;
 }
 
@@ -278,7 +264,7 @@ ATOM RegisterHostWindowClass(HINSTANCE hInstance)
 BOOL SetupHostWindow(HINSTANCE hInst)
 {
     GetCursorPos(&mousePoint);
-    UpdateLensPosition(&mousePoint);
+    lensPosition = { 0, 0 };
 
     // Create the host window. 
     RegisterHostWindowClass(hInst);
@@ -306,14 +292,6 @@ BOOL SetupHostWindow(HINSTANCE hInst)
     return SetLayeredWindowAttributes(hwndHost, 0, 255, LWA_ALPHA);
 }
 
-BOOL SetupMagnifierManager(HINSTANCE hInst)
-{
-    magManager = MagWindowManager(
-        { 0, 0 }, // position in the host window coordinates - top left corner
-        lensSize);
-    return magManager.Create(hInst, hwndHost);
-}
-
 VOID CALLBACK TimerTickEvent(PTP_CALLBACK_INSTANCE, void *context, PTP_TIMER)
 {
     if (enableTimer)
@@ -329,53 +307,47 @@ VOID CALLBACK TimerTickEvent(PTP_CALLBACK_INSTANCE, void *context, PTP_TIMER)
 
 BOOL UpdateLensPosition(LPPOINT mousePosition)
 {
-    if (lensPosition.x == LENS_POSITION_VALUE(mousePosition->x, magManager._lensSize.cx) &&
-        lensPosition.y == LENS_POSITION_VALUE(mousePosition->y, magManager._lensSize.cy))
+    if (lensPosition.x == LENS_POSITION_VALUE(mousePosition->x, magManager->_lensSize.cx) &&
+        lensPosition.y == LENS_POSITION_VALUE(mousePosition->y, magManager->_lensSize.cy))
     {
         return FALSE; // No change needed
     }
 
-    lensPosition.x = LENS_POSITION_VALUE(mousePosition->x, magManager._lensSize.cx);
-    lensPosition.y = LENS_POSITION_VALUE(mousePosition->y, magManager._lensSize.cy);
+    lensPosition.x = LENS_POSITION_VALUE(mousePosition->x, magManager->_lensSize.cx);
+    lensPosition.y = LENS_POSITION_VALUE(mousePosition->y, magManager->_lensSize.cy);
     return TRUE; // Values were changed
 }
 
 VOID UpdateLensSize(BOOL increase)
 {
-
     SIZE newSize;
+    UpdateLensPosition(&mousePoint);
 
     if (increase)
     {
-        UpdateLensPosition(&mousePoint);
-
-        newSize.cx = magManager._lensSize.cx + resizeIncrement.cx;
-        newSize.cy = magManager._lensSize.cy + resizeIncrement.cy;
+        newSize.cx = magManager->_lensSize.cx + resizeIncrement.cx;
+        newSize.cy = magManager->_lensSize.cy + resizeIncrement.cy;
         SetWindowPos(hwndHost, HWND_TOPMOST,
             lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
             newSize.cx, newSize.cy, // width|height of window
-            SWP_SHOWWINDOW);
+            SWP_NOACTIVATE | SWP_NOREDRAW
+        );
 
-        magManager.IncreaseLensSize(resizeIncrement, hwndHost);
-
-        RefreshMagnifier();
+        magManager->IncreaseLensSize(resizeIncrement, hwndHost);
     }
     else
     {
-        UpdateLensPosition(&mousePoint);
-
-        newSize.cx = magManager._lensSize.cx - resizeIncrement.cx;
-        newSize.cy = magManager._lensSize.cy - resizeIncrement.cy;
+        newSize.cx = magManager->_lensSize.cx - resizeIncrement.cx;
+        newSize.cy = magManager->_lensSize.cy - resizeIncrement.cy;
         SetWindowPos(hwndHost, HWND_TOPMOST,
             lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
             newSize.cx, newSize.cy, // width|height of window
-            SWP_SHOWWINDOW);
+            SWP_NOACTIVATE | SWP_NOREDRAW
+        );
 
-        magManager.DecreaseLensSize(resizeIncrement, hwndHost);
-        RefreshMagnifier();
+        magManager->DecreaseLensSize(resizeIncrement, hwndHost);
     }
-
-  
+    RefreshMagnifier();
 }
 
 // Called in the timer tick event to refresh the magnification area drawn and lens (host window) position and size
@@ -383,13 +355,13 @@ VOID RefreshMagnifier()
 {
     GetCursorPos(&mousePoint);
 
-    magManager.RefreshMagnifier(&mousePoint, panOffset);
+    magManager->RefreshMagnifier(&mousePoint, panOffset);
 
     if (UpdateLensPosition(&mousePoint))
     {
         SetWindowPos(hwndHost, HWND_TOPMOST,
             lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
-            magManager._lensSize.cx, magManager._lensSize.cy, // width|height of window
+            magManager->_lensSize.cx, magManager->_lensSize.cy, // width|height of window
             SWP_NOACTIVATE | SWP_NOREDRAW | SWP_NOSIZE);
     }
 }
@@ -449,11 +421,11 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                 {
                 case 0x74: // F5
                 case 0x5A: // Z - decrease magnification
-                    magManager.DecreaseMagnification();
+                    magManager->DecreaseMagnification();
                     return TRUE;    
                 case 0x75: // F6
                 case 0x51: // Q - increase magnification
-                    magManager.IncreaseMagnification();
+                    magManager->IncreaseMagnification();
                     return TRUE;
 
                 case 0x76: // F7
