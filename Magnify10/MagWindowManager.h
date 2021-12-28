@@ -2,31 +2,38 @@
 
 #include "stdafx.h"
 #include "MagWindow.h"
+#include <iostream>
+#include <thread>
+#include <mutex>
+
+// Calculates a lens size value that is slightly larger than (lens + increment) to give an extra buffer area on the edges
+#define LENS_SIZE_BUFFER_VALUE(LENS_SIZE_VALUE, RESIZE_INCREMENT_VALUE) (LENS_SIZE_VALUE + (2 * RESIZE_INCREMENT_VALUE))
+
 
 class MagWindowManager
 {
 private:
-    unsigned int magCount;
+    int magCount;
     int activeIndex;
     MagWindow* mags;
-    SIZE _windowSize;
     POINT _windowPosition;
     LPPOINT _mousePoint;
     POINT _panOffset;
-
-
-    // Rectangle of screen that is centered at the mouse coordinates to be magnified.
-    //RECT _sourceRect;
+    float _magFactor;
 
 public:
+    SIZE _lensSize;
+    
     MagWindowManager() { }
     MagWindowManager(POINT windowPosition, SIZE windowSize)
     {
+        _magFactor = 1.0f;
         mags = nullptr;
-        magCount = 20;
+        magCount = 10;
         activeIndex = 0;
-        _windowSize = windowSize;
+        _lensSize = windowSize;
         _windowPosition = windowPosition;
+        
     }
     ~MagWindowManager()
     {
@@ -51,82 +58,92 @@ public:
 
         for (int i = 0; i < magCount; i++)
         {
-            mags[i] = MagWindow(1 + (i * 1.5f), _windowPosition, _windowSize);
+            mags[i] = MagWindow(1 + (i * 1.25f), _windowPosition, _lensSize);
             if (!mags[i].Create(hInst, hwndHost, i == 0))
             {
                 return FALSE;
             }
-            mags[i].SetSize(_windowSize.cx, _windowSize.cy);
-
-
-            //mag1.UpdateMagnifier(&mousePoint, panOffset, newSize);
-            if (i == 0)
-            {
-                SetWindowPos(mags[i].GetHandle(), HWND_TOP, 0, 0, 0, 0,
-                             SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOMOVE | SWP_NOREDRAW);
-            }
-            else
-            {
-                ShowWindow(mags[i].GetHandle(), SW_HIDE);
-            }
+            mags[i].SetSize(_lensSize.cx, _lensSize.cy);
         }
-
-
-
 
         return TRUE;
     }
 
-    BOOL UpdateMagnifier(LPPOINT mousePoint, POINT panOffset, SIZE windowSize)
+    VOID RefreshMagnifier(LPPOINT mousePoint, POINT panOffset)
     {
         _mousePoint = mousePoint;
-        _windowSize = windowSize;
         _panOffset = panOffset;
-        return mags[activeIndex].UpdateMagnifier(_mousePoint, _panOffset, _windowSize);
+        mags[activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
     }
 
 
+    VOID UpdateMagSize(SIZE newSize, SIZE resizeIncrement)
+    {
+        _lensSize = newSize;
+        
+        mags[activeIndex]._windowSize.cx = _lensSize.cx;
+        mags[activeIndex]._windowSize.cy = _lensSize.cy;
 
+        SetWindowPos(mags[activeIndex].GetHandle(), HWND_TOP,
+            0, 0, //_windowPosition.x, _windowPosition.y,
+            _lensSize.cx, _lensSize.cy,
+            SWP_SHOWWINDOW);
+
+
+        mags[activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
+
+
+    }
+
+
+    VOID UpdateMagnification(int previousIndex, int newIndex)
+    {
+        mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
+        
+        mags[newIndex]._windowSize.cx = _lensSize.cx;
+        mags[newIndex]._windowSize.cy = _lensSize.cy;
+        //mags[newIndex].SetSize(_lensSize.cx, _lensSize.cy);
+
+        //mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
+
+        SetWindowPos(mags[newIndex].GetHandle(), HWND_TOP,
+            _windowPosition.x, _windowPosition.y,
+            _lensSize.cx, _lensSize.cy,
+            SWP_SHOWWINDOW);
+        activeIndex = newIndex;
+        
+        //ShowWindow(mags[newIndex].GetHandle(), SW_SHOW);
+        //ShowWindow(mags[previousIndex].GetHandle(), SW_HIDE);
+    }
 
 
     VOID IncreaseMagnification()
     {
-        if (activeIndex + 1 >= magCount)
-        {
-            return;
-        }
-
-        int newIndex = activeIndex + 1;
-        int previousIndex = activeIndex;
-
-        mags[newIndex].UpdateMagnifier(_mousePoint, _panOffset, _windowSize);
-
-        SetWindowPos(mags[newIndex].GetHandle(), HWND_TOP, 0, 0, 0, 0,
-            SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOMOVE | SWP_NOREDRAW);
-
-        activeIndex = newIndex;
-        ShowWindow(mags[previousIndex].GetHandle(), SW_HIDE);
+        if (activeIndex + 1 >= magCount) { return; }
+        UpdateMagnification(activeIndex, activeIndex + 1);
     }
 
     VOID DecreaseMagnification()
     {
-        if (activeIndex - 1 < 0)
-        {
-            return;
-        }
-
-        int previousIndex = activeIndex;
-        int newIndex = activeIndex - 1;
-
-        mags[newIndex].UpdateMagnifier(_mousePoint, _panOffset, _windowSize);
-
-        SetWindowPos(mags[newIndex].GetHandle(), HWND_TOP, 0, 0, 0, 0,
-            SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOMOVE | SWP_NOREDRAW);
-        
-        activeIndex = newIndex;
-        ShowWindow(mags[previousIndex].GetHandle(), SW_HIDE);
+        if (activeIndex - 1 < 0) { return; }
+        UpdateMagnification(activeIndex, activeIndex - 1);
     }
 
 
+    VOID IncreaseLensSize(SIZE resizeIncrement, HWND hwndHost)
+    {
+        SIZE newSize;
+        newSize.cx = _lensSize.cx + resizeIncrement.cx;
+        newSize.cy = _lensSize.cy + resizeIncrement.cy;
+        UpdateMagSize(newSize, resizeIncrement);
+    }
+
+    VOID DecreaseLensSize(SIZE resizeIncrement, HWND hwndHost)
+    {
+        SIZE newSize;
+        newSize.cx = _lensSize.cx - resizeIncrement.cx;
+        newSize.cy = _lensSize.cy - resizeIncrement.cy;
+        UpdateMagSize(newSize, resizeIncrement);
+    }
 
 };

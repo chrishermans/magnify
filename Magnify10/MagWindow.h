@@ -31,7 +31,7 @@ public:
         matrix.v[1][1] = magFactor;
         matrix.v[2][2] = 1.0f;
 
-        // TODO Avoid race condition where calls to UpdateSourceRect + UpdateMagnifier happen with new magFactor, but before MagSetWindowTransform is called
+        // TODO Avoid race condition where calls to UpdateSourceRect + RefreshMagnifier happen with new magFactor, but before MagSetWindowTransform is called
         //      This is isn't a problem though since this method is always assumed to be called a non-active magWindow
         _magFactor = magFactor;
 
@@ -86,12 +86,12 @@ public:
         _windowSize.cx = width;
         _windowSize.cy = height;
         return SetWindowPos(_hwnd, HWND_TOP,
-            _windowPosition.x, _windowPosition.y,
-            _windowSize.cx, _windowSize.cy,
-            SWP_NOACTIVATE | SWP_NOMOVE);
+                _windowPosition.x, _windowPosition.y,
+                _windowSize.cx, _windowSize.cy,
+                SWP_NOACTIVATE);
     }
 
-    BOOL UpdateMagnifier(LPPOINT mousePoint, POINT panOffset, SIZE windowSize)
+    BOOL RefreshMagnifier(LPPOINT mousePoint, POINT panOffset, SIZE windowSize)
     {
         UpdateSourceRect(mousePoint, panOffset, windowSize);
 
