@@ -8,6 +8,7 @@
 
 // Calculates a lens size value that is slightly larger than (lens + increment) to give an extra buffer area on the edges
 #define LENS_SIZE_BUFFER_VALUE(LENS_SIZE_VALUE, RESIZE_INCREMENT_VALUE) (LENS_SIZE_VALUE + (2 * RESIZE_INCREMENT_VALUE))
+#define LENS_POSITION_VALUE(MOUSEPOINT_VALUE, LENSSIZE_VALUE) (MOUSEPOINT_VALUE - (LENSSIZE_VALUE / 2) - 1)
 
 
 class MagWindowManager
@@ -81,6 +82,8 @@ public:
     {
         _lensSize = newSize;
         
+        //mags[activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
+
         mags[activeIndex]._windowSize.cx = _lensSize.cx;
         mags[activeIndex]._windowSize.cy = _lensSize.cy;
 
@@ -88,8 +91,7 @@ public:
             0, 0, //_windowPosition.x, _windowPosition.y,
             _lensSize.cx, _lensSize.cy,
             SWP_SHOWWINDOW);
-
-
+        
         mags[activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
 
 
@@ -99,21 +101,14 @@ public:
     VOID UpdateMagnification(int previousIndex, int newIndex)
     {
         mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
-        
         mags[newIndex]._windowSize.cx = _lensSize.cx;
         mags[newIndex]._windowSize.cy = _lensSize.cy;
-        //mags[newIndex].SetSize(_lensSize.cx, _lensSize.cy);
-
-        //mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
 
         SetWindowPos(mags[newIndex].GetHandle(), HWND_TOP,
             _windowPosition.x, _windowPosition.y,
             _lensSize.cx, _lensSize.cy,
             SWP_SHOWWINDOW);
         activeIndex = newIndex;
-        
-        //ShowWindow(mags[newIndex].GetHandle(), SW_SHOW);
-        //ShowWindow(mags[previousIndex].GetHandle(), SW_HIDE);
     }
 
 

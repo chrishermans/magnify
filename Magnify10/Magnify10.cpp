@@ -349,17 +349,16 @@ VOID UpdateLensSize(BOOL increase)
     {
         UpdateLensPosition(&mousePoint);
 
-
-        magManager.IncreaseLensSize(resizeIncrement, hwndHost);
-
-        newSize.cx = magManager._lensSize.cx;
-        newSize.cy = magManager._lensSize.cy;
+        newSize.cx = magManager._lensSize.cx + resizeIncrement.cx;
+        newSize.cy = magManager._lensSize.cy + resizeIncrement.cy;
         SetWindowPos(hwndHost, HWND_TOPMOST,
             lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
             newSize.cx, newSize.cy, // width|height of window
-            SWP_NOACTIVATE);
+            SWP_SHOWWINDOW);
 
+        magManager.IncreaseLensSize(resizeIncrement, hwndHost);
 
+        RefreshMagnifier();
     }
     else
     {
@@ -370,24 +369,13 @@ VOID UpdateLensSize(BOOL increase)
         SetWindowPos(hwndHost, HWND_TOPMOST,
             lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
             newSize.cx, newSize.cy, // width|height of window
-            SWP_NOACTIVATE);
+            SWP_SHOWWINDOW);
 
         magManager.DecreaseLensSize(resizeIncrement, hwndHost);
-
+        RefreshMagnifier();
     }
-    /*
 
-    if (increase)
-    {
-        magManager.IncreaseLensSize(resizeIncrement);
-    }
-    else
-    {
-        magManager.DecreaseLensSize(resizeIncrement);
-    }*/
-
-
-    //magManager.RefreshMagnifier(&mousePoint, panOffset);
+  
 }
 
 // Called in the timer tick event to refresh the magnification area drawn and lens (host window) position and size
@@ -471,14 +459,10 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                 case 0x76: // F7
                 case 0x43: // C - decrease lens size
                     UpdateLensSize(FALSE);
-                    //magManager.DecreaseLensSize(resizeIncrement);
-
                     return TRUE;
                 case 0x77: // F8
                 case 0x56: // V - increase lens size
                     UpdateLensSize(TRUE);
-                    //magManager.IncreaseLensSize(resizeIncrement);
-
                     return TRUE;
 
                 case 0x57: // W - pan up
