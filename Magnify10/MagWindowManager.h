@@ -6,6 +6,9 @@
 #include <thread>
 #include <mutex>
 
+#define LENS_SIZE_BUFFER_VALUE(LENS_SIZE_VALUE, RESIZE_INCREMENT_VALUE) (LENS_SIZE_VALUE + (2 * RESIZE_INCREMENT_VALUE))
+
+
 class MagWindowManager
 {
 private:
@@ -22,7 +25,7 @@ public:
     {
         _mags = nullptr;
         _mousePoint = nullptr;
-        _magCount = 10;
+        _magCount = 9;
         _activeIndex = 0;
         _panOffset = { 0, 0 };
         _lensSize = lensSize;
@@ -50,7 +53,7 @@ public:
 
         for (int i = 0; i < _magCount; i++)
         {
-            _mags[i] = MagWindow(1 + (i * 1.25f), { 0, 0 }, _lensSize);
+            _mags[i] = MagWindow(pow(1.5f, i), {0, 0}, _lensSize);
             if (!_mags[i].Create(hInst, hwndHost, i == 0))
             {
                 return FALSE;
@@ -74,7 +77,7 @@ public:
         _lensSize = newSize;
         _mags[_activeIndex].SetSize(_lensSize);
         _mags[_activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
-    }
+    } 
 
 
     VOID UpdateMagnification(int previousIndex, int newIndex)
@@ -86,20 +89,22 @@ public:
         _activeIndex = newIndex;
         SetWindowPos(_mags[newIndex].GetHandle(), HWND_TOP,
             0, 0, _lensSize.cx, _lensSize.cy,
-            SWP_SHOWWINDOW | SWP_NOMOVE);
+            SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOMOVE);
     }
 
 
-    VOID IncreaseMagnification()
+    BOOL IncreaseMagnification()
     {
-        if (_activeIndex + 1 >= _magCount) { return; }
+        if (_activeIndex + 1 >= _magCount) { return FALSE; }
         UpdateMagnification(_activeIndex, _activeIndex + 1);
+        return TRUE;
     }
 
-    VOID DecreaseMagnification()
+    BOOL DecreaseMagnification()
     {
-        if (_activeIndex - 1 < 0) { return; }
+        if (_activeIndex - 1 < 0) { return FALSE; }
         UpdateMagnification(_activeIndex, _activeIndex - 1);
+        return TRUE;
     }
 
 
@@ -114,7 +119,7 @@ public:
     VOID DecreaseLensSize(SIZE resizeIncrement, HWND hwndHost)
     {
         SIZE newSize;
-        newSize.cx = _lensSize.cx - resizeIncrement.cx;
+        newSize.cx = _lensSize.cx - resizeIncrement.cx; 
         newSize.cy = _lensSize.cy - resizeIncrement.cy;
         UpdateMagSize(newSize);
     }

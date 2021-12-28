@@ -318,6 +318,14 @@ BOOL UpdateLensPosition(LPPOINT mousePosition)
     return TRUE; // Values were changed
 }
 
+POINT GetLensPosition(LPPOINT mousePosition, SIZE size)
+{
+    POINT p;
+    p.x = LENS_POSITION_VALUE(mousePosition->x, size.cx);
+    p.y = LENS_POSITION_VALUE(mousePosition->y, size.cy);
+    return p;
+}
+
 VOID UpdateLensSize(BOOL increase)
 {
     SIZE newSize;
@@ -344,7 +352,7 @@ VOID UpdateLensSize(BOOL increase)
             newSize.cx, newSize.cy, // width|height of window
             SWP_NOACTIVATE | SWP_NOREDRAW
         );
-
+        
         magManager->DecreaseLensSize(resizeIncrement, hwndHost);
     }
     RefreshMagnifier();
@@ -367,25 +375,35 @@ VOID RefreshMagnifier()
 }
 
 
+VOID DisableMagnifier()
+{
+    ShowWindow(hwndHost, SW_HIDE);
+    enabled = FALSE;
+    SetThreadpoolTimer(refreshTimer, nullptr, 0, 0); // Stop the refresh timer
+
+    // reset any panning that had been done
+    panOffset.x = 0;
+    panOffset.y = 0;
+}
+
+VOID EnableMagnifier()
+{
+    RefreshMagnifier(); // update position/rect before showing		
+    enabled = TRUE;
+    SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0); // Start the refresh timer
+    ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
+}
+
 // Toggles showing the magnifier
 VOID ToggleMagnifier()
 {
     if (enabled)
     {
-        ShowWindow(hwndHost, SW_HIDE);
-        enabled = FALSE;
-        SetThreadpoolTimer(refreshTimer, nullptr, 0, 0); // Stop the refresh timer
-
-        // reset any panning that had been done
-        panOffset.x = 0;
-        panOffset.y = 0;
+        DisableMagnifier();
     }
     else
     {
-        RefreshMagnifier(); // update position/rect before showing		
-        enabled = TRUE;
-        SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0); // Start the refresh timer
-        ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
+        EnableMagnifier();
     }
 }
 
