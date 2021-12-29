@@ -33,18 +33,15 @@ public:
     }
     ~MagWindowManager()
     {
-        delete _mags;
+        delete[] _mags;
     }
 
     VOID DestroyWindows()
     {
-        if (_mags == nullptr)
-        {
-            return;
-        }
+        if (_mags == nullptr) { return; }
         for (int i = 0; i < _magCount; i++)
         {
-            DestroyWindow(_mags[i].GetHandle());
+            _mags[i].Destroy();
         }
     }
 
@@ -71,7 +68,6 @@ public:
         _panOffset = panOffset;
         return _mags[_activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
     }
-
 
     BOOL UpdateMagSize(SIZE newSize, SIZE resizeIncrement, SIZE limit)
     {
@@ -104,7 +100,6 @@ public:
             0, 0, _lensSize.cx, _lensSize.cy,
             SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOMOVE );
     }
-
 
     BOOL IncreaseMagnification()
     {

@@ -344,7 +344,6 @@ VOID RefreshMagnifier()
     }
 }
 
-
 VOID DisableMagnifier()
 {
     ShowWindow(hwndHost, SW_HIDE);
@@ -457,7 +456,6 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                 break;
             }
             
-
         } // wParam == WM_KEYDOWN
     } // wkdown
 

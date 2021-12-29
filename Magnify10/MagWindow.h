@@ -76,6 +76,11 @@ public:
         return SetMagnificationFactorInternal(_magFactor);
     }
 
+    BOOL Destroy()
+    {
+        if (_hwnd != nullptr) { DestroyWindow(_hwnd); }
+    }
+
     HWND GetHandle() { return _hwnd; }
 
     BOOL SetMagnificationFactor(float magFactor)
