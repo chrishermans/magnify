@@ -84,16 +84,16 @@ public:
         return SetMagnificationFactorInternal(magFactor);
     }
 
-    BOOL SetSize(SIZE size)
+    BOOL SetSize(int width, int height)
     {
-        if (_windowSize.cx == size.cx && _windowSize.cy == size.cy) { return FALSE; }
+        if (_windowSize.cx == width && _windowSize.cy == height) { return FALSE; }
 
-        _windowSize.cx = size.cx;
-        _windowSize.cy = size.cy;
+        _windowSize.cx = width;
+        _windowSize.cy = height;
         return SetWindowPos(_hwnd, HWND_TOP,
                 _windowPosition.x, _windowPosition.y,
                 _windowSize.cx, _windowSize.cy,
-                SWP_NOACTIVATE | SWP_NOREDRAW | SWP_NOMOVE);
+                SWP_NOREDRAW | SWP_NOMOVE);
     }
 
     BOOL RefreshMagnifier(LPPOINT mousePoint, POINT panOffset, SIZE windowSize)

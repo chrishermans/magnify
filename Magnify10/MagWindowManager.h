@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 
+// Calculates a lens size value that is slightly larger than (lens + increment) to give an extra buffer area on the edges
 #define LENS_SIZE_BUFFER_VALUE(LENS_SIZE_VALUE, RESIZE_INCREMENT_VALUE) (LENS_SIZE_VALUE + (2 * RESIZE_INCREMENT_VALUE))
 
 
@@ -53,12 +54,12 @@ public:
 
         for (int i = 0; i < _magCount; i++)
         {
-            _mags[i] = MagWindow(pow(1.5f, i), {0, 0}, _lensSize);
+            _mags[i] = MagWindow((float)pow(1.5f, i), {0, 0}, _lensSize);
             if (!_mags[i].Create(hInst, hwndHost, i == 0))
             {
                 return FALSE;
             }
-            _mags[i].SetSize(_lensSize);
+            _mags[i].SetSize(_lensSize.cx, _lensSize.cy);
         }
 
         return TRUE;
@@ -72,17 +73,23 @@ public:
     }
 
 
-    VOID UpdateMagSize(SIZE newSize)
+    VOID UpdateMagSize(SIZE newSize, SIZE resizeIncrement)
     {
         _lensSize = newSize;
-        _mags[_activeIndex].SetSize(_lensSize);
+        _mags[_activeIndex].SetSize(
+            LENS_SIZE_BUFFER_VALUE(newSize.cx, resizeIncrement.cx),
+            LENS_SIZE_BUFFER_VALUE(newSize.cy, resizeIncrement.cy)
+        );
+
+        _mags[_activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
         _mags[_activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
     } 
-
 
     VOID UpdateMagnification(int previousIndex, int newIndex)
     {
         _mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
+        _mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
+        
         _mags[newIndex]._windowSize.cx = _lensSize.cx;
         _mags[newIndex]._windowSize.cy = _lensSize.cy;
 
@@ -108,20 +115,20 @@ public:
     }
 
 
-    VOID IncreaseLensSize(SIZE resizeIncrement, HWND hwndHost)
+    VOID IncreaseLensSize(SIZE resizeIncrement)
     {
         SIZE newSize;
         newSize.cx = _lensSize.cx + resizeIncrement.cx;
         newSize.cy = _lensSize.cy + resizeIncrement.cy;
-        UpdateMagSize(newSize);
+        UpdateMagSize(newSize, resizeIncrement);
     }
 
-    VOID DecreaseLensSize(SIZE resizeIncrement, HWND hwndHost)
+    VOID DecreaseLensSize(SIZE resizeIncrement)
     {
         SIZE newSize;
         newSize.cx = _lensSize.cx - resizeIncrement.cx; 
         newSize.cy = _lensSize.cy - resizeIncrement.cy;
-        UpdateMagSize(newSize);
+        UpdateMagSize(newSize, resizeIncrement);
     }
 
 };

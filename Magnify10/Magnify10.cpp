@@ -92,9 +92,6 @@ PTP_TIMER           refreshTimer;
 // Calculates an X or Y value where the lens (host window) should be relative to mouse position. i.e. top left corner of a window centered on mouse
 #define LENS_POSITION_VALUE(MOUSEPOINT_VALUE, LENSSIZE_VALUE) (MOUSEPOINT_VALUE - (LENSSIZE_VALUE / 2) - 1)
 
-// Calculates a lens size value that is slightly larger than (lens + increment) to give an extra buffer area on the edges
-#define LENS_SIZE_BUFFER_VALUE(LENS_SIZE_VALUE, RESIZE_INCREMENT_VALUE) (LENS_SIZE_VALUE + (2 * RESIZE_INCREMENT_VALUE))
-
 // Forward declarations. 
 ATOM                RegisterHostWindowClass(HINSTANCE hInstance);
 BOOL                SetupHostWindow(HINSTANCE hinst);
@@ -104,6 +101,7 @@ VOID CALLBACK       TimerTickEvent(PTP_CALLBACK_INSTANCE, VOID* context, PTP_TIM
 
 VOID                InitScreenDimensions();
 
+VOID                UpdateHostSize();
 BOOL                UpdateLensPosition(LPPOINT mousePoint);
 VOID                RefreshMagnifier();
 
@@ -326,36 +324,13 @@ POINT GetLensPosition(LPPOINT mousePosition, SIZE size)
     return p;
 }
 
-VOID UpdateLensSize(BOOL increase)
+VOID UpdateHostSize()
 {
-    SIZE newSize;
-    UpdateLensPosition(&mousePoint);
-
-    if (increase)
-    {
-        newSize.cx = magManager->_lensSize.cx + resizeIncrement.cx;
-        newSize.cy = magManager->_lensSize.cy + resizeIncrement.cy;
-        SetWindowPos(hwndHost, HWND_TOPMOST,
-            lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
-            newSize.cx, newSize.cy, // width|height of window
-            SWP_NOACTIVATE | SWP_NOREDRAW
-        );
-
-        magManager->IncreaseLensSize(resizeIncrement, hwndHost);
-    }
-    else
-    {
-        newSize.cx = magManager->_lensSize.cx - resizeIncrement.cx;
-        newSize.cy = magManager->_lensSize.cy - resizeIncrement.cy;
-        SetWindowPos(hwndHost, HWND_TOPMOST,
-            lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
-            newSize.cx, newSize.cy, // width|height of window
-            SWP_NOACTIVATE | SWP_NOREDRAW
-        );
-        
-        magManager->DecreaseLensSize(resizeIncrement, hwndHost);
-    }
-    RefreshMagnifier();
+    SetWindowPos(hwndHost, HWND_TOPMOST,
+        LENS_POSITION_VALUE(mousePoint.x, magManager->_lensSize.cx),
+        LENS_POSITION_VALUE(mousePoint.y, magManager->_lensSize.cy),
+        magManager->_lensSize.cx, magManager->_lensSize.cy, // width|height of window
+        SWP_NOACTIVATE);
 }
 
 // Called in the timer tick event to refresh the magnification area drawn and lens (host window) position and size
@@ -369,8 +344,8 @@ VOID RefreshMagnifier()
     {
         SetWindowPos(hwndHost, HWND_TOPMOST,
             lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
-            magManager->_lensSize.cx, magManager->_lensSize.cy, // width|height of window
-            SWP_NOACTIVATE | SWP_NOREDRAW | SWP_NOSIZE);
+            0, 0,
+            SWP_NOACTIVATE | SWP_NOSIZE);
     }
 }
 
@@ -425,12 +400,14 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     {
         key = ((KBDLLHOOKSTRUCT*)lParam);
 
-        if (key->vkCode == VK_OEM_3 /* tilde ` ~ key */ && wParam == WM_KEYDOWN)
+        if (key->vkCode == VK_OEM_3 && /* tilde ` ~ key */
+            wParam == WM_KEYDOWN)
         {
             ToggleMagnifier();
             return TRUE;
         }
-        else if (enabled)
+        
+        if (enabled)
         {
             switch (wParam)
             {
@@ -439,6 +416,10 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                 {
                 case 0x74: // F5
                 case 0x5A: // Z - decrease magnification
+                    /*if (!magManager->DecreaseMagnification())
+                    {
+                        DisableMagnifier();
+                    }*/
                     magManager->DecreaseMagnification();
                     return TRUE;    
                 case 0x75: // F6
@@ -448,11 +429,13 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 
                 case 0x76: // F7
                 case 0x43: // C - decrease lens size
-                    UpdateLensSize(FALSE);
+                    magManager->DecreaseLensSize(resizeIncrement);
+                    UpdateHostSize();
                     return TRUE;
                 case 0x77: // F8
                 case 0x56: // V - increase lens size
-                    UpdateLensSize(TRUE);
+                    magManager->IncreaseLensSize(resizeIncrement);
+                    UpdateHostSize();
                     return TRUE;
 
                 case 0x57: // W - pan up
