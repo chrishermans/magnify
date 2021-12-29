@@ -26,7 +26,7 @@ public:
     {
         _mags = nullptr;
         _mousePoint = nullptr;
-        _magCount = 9;
+        _magCount = 8;
         _activeIndex = 0;
         _panOffset = { 0, 0 };
         _lensSize = lensSize;
@@ -54,7 +54,7 @@ public:
 
         for (int i = 0; i < _magCount; i++)
         {
-            _mags[i] = MagWindow((float)pow(1.5f, i), {0, 0}, _lensSize);
+            _mags[i] = MagWindow((float)pow(1.5f, i + 1), { 0, 0 }, _lensSize);
             if (!_mags[i].Create(hInst, hwndHost, i == 0))
             {
                 return FALSE;
@@ -85,7 +85,7 @@ public:
         _mags[_activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
     } 
 
-    VOID UpdateMagnification(int previousIndex, int newIndex)
+    VOID UpdateMagnification(int newIndex)
     {
         _mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
         _mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
@@ -103,14 +103,14 @@ public:
     BOOL IncreaseMagnification()
     {
         if (_activeIndex + 1 >= _magCount) { return FALSE; }
-        UpdateMagnification(_activeIndex, _activeIndex + 1);
+        UpdateMagnification(_activeIndex + 1);
         return TRUE;
     }
 
     BOOL DecreaseMagnification()
     {
         if (_activeIndex - 1 < 0) { return FALSE; }
-        UpdateMagnification(_activeIndex, _activeIndex - 1);
+        UpdateMagnification(_activeIndex - 1);
         return TRUE;
     }
 

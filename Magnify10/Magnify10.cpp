@@ -400,13 +400,29 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     {
         key = ((KBDLLHOOKSTRUCT*)lParam);
 
-        if (key->vkCode == VK_OEM_3 && /* tilde ` ~ key */
-            wParam == WM_KEYDOWN)
+        if (wParam == WM_KEYDOWN)
         {
-            ToggleMagnifier();
-            return TRUE;
+            if (key->vkCode == VK_OEM_3)
+            {
+                ToggleMagnifier();
+                return TRUE;
+            }
+            
+            if (!enabled)
+            {
+                if (key->vkCode == 0x51 /* Q */)
+                {
+                    EnableMagnifier();
+                    return TRUE;
+                }
+
+                if (key->vkCode == 0x5A /* Z */)
+                {
+                    return TRUE;
+                }
+            }
         }
-        
+
         if (enabled)
         {
             switch (wParam)
@@ -414,25 +430,24 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
             case WM_KEYDOWN:
                 switch (key->vkCode)
                 {
-                case 0x74: // F5
+                case VK_F5:
                 case 0x5A: // Z - decrease magnification
-                    /*if (!magManager->DecreaseMagnification())
+                    if (!magManager->DecreaseMagnification())
                     {
                         DisableMagnifier();
-                    }*/
-                    magManager->DecreaseMagnification();
+                    }
                     return TRUE;    
-                case 0x75: // F6
+                case VK_F6:
                 case 0x51: // Q - increase magnification
                     magManager->IncreaseMagnification();
                     return TRUE;
 
-                case 0x76: // F7
+                case VK_F7:
                 case 0x43: // C - decrease lens size
                     magManager->DecreaseLensSize(resizeIncrement);
                     UpdateHostSize();
                     return TRUE;
-                case 0x77: // F8
+                case VK_F8:
                 case 0x56: // V - increase lens size
                     magManager->IncreaseLensSize(resizeIncrement);
                     UpdateHostSize();
@@ -451,10 +466,10 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                     panOffset.x += PAN_INCREMENT_HORIZONTAL;
                     return TRUE;
   
-                case 0x73: // F4
+                case VK_F4:
                     enableTimer = !enableTimer;
                     return TRUE;
-                case 0x72: // F3
+                case VK_F3:
                     RefreshMagnifier();
                     return TRUE;
 
