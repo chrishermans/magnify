@@ -65,16 +65,22 @@ public:
         return TRUE;
     }
 
-    VOID RefreshMagnifier(LPPOINT mousePoint, POINT panOffset)
+    BOOL RefreshMagnifier(LPPOINT mousePoint, POINT panOffset)
     {
         _mousePoint = mousePoint;
         _panOffset = panOffset;
-        _mags[_activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
+        return _mags[_activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
     }
 
 
-    VOID UpdateMagSize(SIZE newSize, SIZE resizeIncrement)
+    BOOL UpdateMagSize(SIZE newSize, SIZE resizeIncrement, SIZE limit)
     {
+        if (newSize.cx >= limit.cx || newSize.cy >= limit.cy ||
+            newSize.cx <= resizeIncrement.cx || newSize.cy <= resizeIncrement.cy)
+        {
+            return FALSE;
+        }
+
         _lensSize = newSize;
         _mags[_activeIndex].SetSize(
             LENS_SIZE_BUFFER_VALUE(newSize.cx, resizeIncrement.cx),
@@ -83,52 +89,47 @@ public:
 
         _mags[_activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
         _mags[_activeIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
+        return TRUE;
     } 
 
-    VOID UpdateMagnification(int newIndex)
+    BOOL UpdateMagnification(int newIndex)
     {
+        if (newIndex + 1 >= _magCount || newIndex - 1 < 0) { return FALSE; }
+
         _mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
         _mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
         
-        _mags[newIndex]._windowSize.cx = _lensSize.cx;
-        _mags[newIndex]._windowSize.cy = _lensSize.cy;
-
         _activeIndex = newIndex;
-        SetWindowPos(_mags[newIndex].GetHandle(), HWND_TOP,
+        return SetWindowPos(_mags[newIndex].GetHandle(), HWND_TOP,
             0, 0, _lensSize.cx, _lensSize.cy,
-            SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOMOVE);
+            SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOMOVE );
     }
 
 
     BOOL IncreaseMagnification()
     {
-        if (_activeIndex + 1 >= _magCount) { return FALSE; }
-        UpdateMagnification(_activeIndex + 1);
-        return TRUE;
+        return UpdateMagnification(_activeIndex + 1);
     }
 
     BOOL DecreaseMagnification()
     {
-        if (_activeIndex - 1 < 0) { return FALSE; }
-        UpdateMagnification(_activeIndex - 1);
-        return TRUE;
+        return UpdateMagnification(_activeIndex - 1);
     }
 
-
-    VOID IncreaseLensSize(SIZE resizeIncrement)
+    BOOL IncreaseLensSize(SIZE increment, SIZE limit)
     {
-        SIZE newSize;
-        newSize.cx = _lensSize.cx + resizeIncrement.cx;
-        newSize.cy = _lensSize.cy + resizeIncrement.cy;
-        UpdateMagSize(newSize, resizeIncrement);
+        return UpdateMagSize(
+            { _lensSize.cx + increment.cx,
+              _lensSize.cy + increment.cy },
+            increment, limit);
     }
 
-    VOID DecreaseLensSize(SIZE resizeIncrement)
+    BOOL DecreaseLensSize(SIZE increment, SIZE limit)
     {
-        SIZE newSize;
-        newSize.cx = _lensSize.cx - resizeIncrement.cx; 
-        newSize.cy = _lensSize.cy - resizeIncrement.cy;
-        UpdateMagSize(newSize, resizeIncrement);
+        return UpdateMagSize(
+            { _lensSize.cx - increment.cx,
+              _lensSize.cy - increment.cy },
+            increment, limit);
     }
 
 };

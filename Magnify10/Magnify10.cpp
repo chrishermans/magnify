@@ -13,21 +13,17 @@
 // Magnification lens refresh interval - Should be as low as possible to match monitor refresh rate.
 const UINT          TIMER_INTERVAL_MS = 7;
 
-// Magnification rates
-const float         MAGNIFICATION_INCREMENT = 0.5f;
-const float         MAGNIFICATION_LIMIT = 12.0f;
-
 // lens sizing factors as a percent of screen resolution
 const float         INIT_LENS_WIDTH_FACTOR = 0.5f;
 const float         INIT_LENS_HEIGHT_FACTOR = 0.5f;
-const float         INIT_LENS_RESIZE_HEIGHT_FACTOR = 0.0625f;
-const float         INIT_LENS_RESIZE_WIDTH_FACTOR = 0.0625f;
+const float         INIT_LENS_RESIZE_HEIGHT_FACTOR = 0.1f; 
+const float         INIT_LENS_RESIZE_WIDTH_FACTOR = 0.1f;
 const float         LENS_MAX_WIDTH_FACTOR = 1.2f;
 const float         LENS_MAX_HEIGHT_FACTOR = 1.2f;
 
 // lens shift/pan increments
-const int           PAN_INCREMENT_HORIZONTAL = 75;
-const int           PAN_INCREMENT_VERTICAL = 75;
+const int           PAN_INCREMENT_HORIZONTAL = 100;
+const int           PAN_INCREMENT_VERTICAL = 100;
 
 #pragma endregion
 
@@ -35,9 +31,8 @@ const int           PAN_INCREMENT_VERTICAL = 75;
 #pragma region Variables
 
 SIZE                screenSize;
-SIZE                lensSize; // Size in pixels of the lens (host window)
+SIZE                initLensSize; // Size in pixels of the lens (host window)
 POINT               lensPosition; // Top left corner of the lens (host window)
-
 
 SIZE                resizeIncrement;
 SIZE                resizeLimit;
@@ -123,7 +118,7 @@ int APIENTRY WinMain(
 
     if (!MagInitialize()) { return 0; }
     if (!SetupHostWindow(hInstance)) { return 0; }
-    magManager = new MagWindowManager(lensSize);
+    magManager = new MagWindowManager(initLensSize);
     if (!magManager->Create(hInstance, hwndHost)) { return 0; }
     if (!UpdateWindow(hwndHost)) { return 0; }
 
@@ -236,8 +231,8 @@ VOID InitScreenDimensions()
     screenSize.cx = GetSystemMetrics(SM_CXSCREEN);
     screenSize.cy = GetSystemMetrics(SM_CYSCREEN);
 
-    lensSize.cx = (int)(screenSize.cx * INIT_LENS_WIDTH_FACTOR);
-    lensSize.cy = (int)(screenSize.cy * INIT_LENS_HEIGHT_FACTOR);
+    initLensSize.cx = (int)(screenSize.cx * INIT_LENS_WIDTH_FACTOR);
+    initLensSize.cy = (int)(screenSize.cy * INIT_LENS_HEIGHT_FACTOR);
 
     resizeIncrement.cx = (int)(screenSize.cx * INIT_LENS_RESIZE_WIDTH_FACTOR);
     resizeIncrement.cy = (int)(screenSize.cy * INIT_LENS_RESIZE_HEIGHT_FACTOR);
@@ -278,7 +273,7 @@ BOOL SetupHostWindow(HINSTANCE hInst)
         WS_POPUP | // Removes titlebar and borders - simply a bare window
         WS_BORDER, // Adds a 1-pixel border for tracking the edges - aesthetic
         lensPosition.x, lensPosition.y,
-        lensSize.cx, lensSize.cy,
+        initLensSize.cx, initLensSize.cy,
         nullptr, nullptr, hInst, nullptr);
 
     if (!hwndHost)
@@ -408,6 +403,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                 return TRUE;
             }
             
+
             if (!enabled)
             {
                 if (key->vkCode == 0x51 /* Q */)
@@ -422,6 +418,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                 }
             }
         }
+
 
         if (enabled)
         {
@@ -444,13 +441,17 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 
                 case VK_F7:
                 case 0x43: // C - decrease lens size
-                    magManager->DecreaseLensSize(resizeIncrement);
-                    UpdateHostSize();
+                    if (magManager->DecreaseLensSize(resizeIncrement, resizeLimit))
+                    {
+                        UpdateHostSize();
+                    }
                     return TRUE;
                 case VK_F8:
                 case 0x56: // V - increase lens size
-                    magManager->IncreaseLensSize(resizeIncrement);
-                    UpdateHostSize();
+                    if (magManager->IncreaseLensSize(resizeIncrement, resizeLimit))
+                    {
+                        UpdateHostSize();
+                    }
                     return TRUE;
 
                 case 0x57: // W - pan up
