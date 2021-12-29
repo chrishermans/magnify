@@ -78,7 +78,7 @@ public:
 
     BOOL Destroy()
     {
-        if (_hwnd != nullptr) { DestroyWindow(_hwnd); }
+        if (_hwnd != nullptr) { return DestroyWindow(_hwnd); }
     }
 
     HWND GetHandle() { return _hwnd; }
