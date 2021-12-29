@@ -90,7 +90,7 @@ public:
 
     BOOL UpdateMagnification(int newIndex)
     {
-        if (newIndex + 1 >= _magCount || newIndex - 1 < 0) { return FALSE; }
+        if (newIndex >= _magCount || newIndex < 0) { return FALSE; }
 
         _mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
         _mags[newIndex].RefreshMagnifier(_mousePoint, _panOffset, _lensSize);
