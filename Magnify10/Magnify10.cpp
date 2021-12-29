@@ -356,25 +356,20 @@ VOID DisableMagnifier()
     panOffset.y = 0;
 }
 
-VOID EnableMagnifier()
+BOOL EnableMagnifier()
 {
     RefreshMagnifier(); // update position/rect before showing		
     enabled = TRUE;
     SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0); // Start the refresh timer
     ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
+    return TRUE;
 }
 
 // Toggles showing the magnifier
 VOID ToggleMagnifier()
 {
-    if (enabled)
-    {
-        DisableMagnifier();
-    }
-    else
-    {
-        EnableMagnifier();
-    }
+    if (enabled) { DisableMagnifier(); }
+    else { EnableMagnifier(); }
 }
 
 
@@ -397,94 +392,74 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 
         if (wParam == WM_KEYDOWN)
         {
-            if (key->vkCode == VK_OEM_3)
+            switch (key->vkCode)
             {
+            case VK_OEM_3:
                 ToggleMagnifier();
                 return TRUE;
-            }
-            
-
-            if (!enabled)
-            {
-                if (key->vkCode == 0x51 /* Q */)
+            case VK_F5:
+            case 0x5A: // Z - decrease magnification
+                if (!enabled) { return TRUE; }
+                if (!magManager->DecreaseMagnification())
                 {
-                    EnableMagnifier();
-                    return TRUE;
+                    DisableMagnifier();
                 }
+                return TRUE;
+            case VK_F6:
+            case 0x51: // Q - increase magnification
+                if (!enabled) { return EnableMagnifier(); }
+                magManager->IncreaseMagnification();
+                return TRUE;
 
-                if (key->vkCode == 0x5A /* Z */)
+            case VK_F7:
+            case 0x43: // C - decrease lens size
+                if (!enabled) { return TRUE; }
+                if (magManager->DecreaseLensSize(resizeIncrement, resizeLimit))
                 {
-                    return TRUE;
+                    UpdateHostSize();
                 }
-            }
-        }
-
-
-        if (enabled)
-        {
-            switch (wParam)
-            {
-            case WM_KEYDOWN:
-                switch (key->vkCode)
+                return TRUE;
+            case VK_F8:
+            case 0x56: // V - increase lens size
+                if (!enabled) { return EnableMagnifier(); }
+                if (magManager->IncreaseLensSize(resizeIncrement, resizeLimit))
                 {
-                case VK_F5:
-                case 0x5A: // Z - decrease magnification
-                    if (!magManager->DecreaseMagnification())
-                    {
-                        DisableMagnifier();
-                    }
-                    return TRUE;    
-                case VK_F6:
-                case 0x51: // Q - increase magnification
-                    magManager->IncreaseMagnification();
-                    return TRUE;
-
-                case VK_F7:
-                case 0x43: // C - decrease lens size
-                    if (magManager->DecreaseLensSize(resizeIncrement, resizeLimit))
-                    {
-                        UpdateHostSize();
-                    }
-                    return TRUE;
-                case VK_F8:
-                case 0x56: // V - increase lens size
-                    if (magManager->IncreaseLensSize(resizeIncrement, resizeLimit))
-                    {
-                        UpdateHostSize();
-                    }
-                    return TRUE;
-
-                case 0x57: // W - pan up
-                    panOffset.y -= PAN_INCREMENT_VERTICAL;
-                    return TRUE;
-                case 0x58: // X - pan down	
-                    panOffset.y += PAN_INCREMENT_VERTICAL;
-                    return TRUE;
-                case 0x41: // A - pan left
-                    panOffset.x -= PAN_INCREMENT_HORIZONTAL;
-                    return TRUE;
-                case 0x53: // S - pan right
-                    panOffset.x += PAN_INCREMENT_HORIZONTAL;
-                    return TRUE;
-  
-                case VK_F4:
-                    enableTimer = !enableTimer;
-                    return TRUE;
-                case VK_F3:
-                    RefreshMagnifier();
-                    return TRUE;
-
-                default:
-                    break;
+                    UpdateHostSize();
                 }
-                break;
+                return TRUE;
+
+            case 0x57: // W - pan up
+                if (!enabled) { break; }
+                panOffset.y -= PAN_INCREMENT_VERTICAL;
+                return TRUE;
+            case 0x58: // X - pan down	
+                if (!enabled) { break; }
+                panOffset.y += PAN_INCREMENT_VERTICAL;
+                return TRUE;
+            case 0x41: // A - pan left
+                if (!enabled) { break; }
+                panOffset.x -= PAN_INCREMENT_HORIZONTAL;
+                return TRUE;
+            case 0x53: // S - pan right
+                if (!enabled) { break; }
+                panOffset.x += PAN_INCREMENT_HORIZONTAL;
+                return TRUE;
+            case VK_F4: // toggle timer based refreshes
+                if (!enabled) { break; }
+                enableTimer = !enableTimer;
+                return TRUE;
+            case VK_F3: // on-demand refresh
+                if (!enabled) { break; }
+                RefreshMagnifier();
+                return TRUE;
 
             default:
                 break;
             }
+            
 
-        }
-    }
+        } // wParam == WM_KEYDOWN
+    } // wkdown
 
     return CallNextHookEx(hkb, nCode, wParam, lParam);
 }
