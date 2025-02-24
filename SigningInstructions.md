@@ -9,7 +9,7 @@ $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "<CERT_SUBJECT>" -C
 $CertPassword = ConvertTo-SecureString -String "<CERT_PASSWORD>" -Force –AsPlainText
 Export-PfxCertificate -Cert "cert:\CurrentUser\My\$($cert.Thumbprint)" -FilePath "<CERT_FILEPATH>" -Password $CertPassword
 ```
-2. <install pfx to local machine trusted root store>
+2. Install pfx to the local machine trusted root store
 3. Sign the executable with the pfx
 ```
 SignTool sign /fd SHA256 /v /f .\magnify11.pfx /p <CERT_PASSWORD> /t http://timestamp.digicert.com <EXE_FILENAME>
@@ -21,7 +21,7 @@ SignTool sign /fd SHA256 /v /f .\magnify11.pfx /p <CERT_PASSWORD> /t http://time
 ```
 New-SelfSignedCertificate -CertStoreLocation Cert:\CurrentUser\My -Type CodeSigningCert -Subject "<CERT_SUBJECT>" -NotAfter (Get-Date).AddYears(10)
 ```
-2. <Move cert from Personal (My) to local machine Trusted Root Authorities (Root)>
+2. Move the certificate from Personal (My) to local machine Trusted Root Authorities (Root)
 3. Sign the executable
 ```
 SignTool sign /v /fd SHA256 /s Root /n "<CERT_SUBJECT>" /t http://timestamp.digicert.com <EXE_FILENAME>
