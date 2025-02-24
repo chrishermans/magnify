@@ -52,17 +52,4 @@ Because this program requires access to the Windows UI in order to properly magn
 
 However, windows will only allow such executables to run if they are signed, and reside within a secure location such as `%systemdrive%\Program Files\` for example. [More on this](https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/user-account-control-only-elevate-uiaccess-applications-that-are-installed-in-secure-locations).
 
-### Signing and running an executable
-To sign and run an executable, it requires a certificate to be generated and installed in the machine's `Trusted Root Certificate Authority`. To do this:
-
-#### Create a certificate
-1. Open an elevated command prompt
-2. Browse to a folder that you want to create the certificate in
-3. Execute: `makecert -r -pe -n "CN=Test Certificate - For Internal Use Only" -ss PrivateCertStore testcert.cer`
-4. Execute: `certmgr.exe -add testcert.cer -s -r localMachine root`
-
-#### Sign the executable
-1. Browse to the location of the .exe file
-2. Execute: `SignTool sign /v /s PrivateCertStore /n "Test Certificate - For Internal Use Only" /t http://timestamp.verisign.com/scripts/timestamp.dll app.exe` where app.exe is the executable to sign.
-
-Once the executable is signed, place it in the `Program Files` directory or a subdirectory, and run it from there.
+See SigningInstructions for details
