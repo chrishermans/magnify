@@ -12,7 +12,7 @@ Export-PfxCertificate -Cert "cert:\CurrentUser\My\$($cert.Thumbprint)" -FilePath
 2. Install pfx to the local machine trusted root store
 3. Sign the executable with the pfx
 ```
-SignTool sign /fd SHA256 /v /f .\magnify11.pfx /p <CERT_PASSWORD> /t http://timestamp.digicert.com <EXE_FILENAME>
+SignTool sign /fd SHA256 /v /f <CERT_FILEPATH> /p <CERT_PASSWORD> /t http://timestamp.digicert.com <EXE_FILENAME>
 ```
 
 ## Method 2: Generate certificate in certificate store
