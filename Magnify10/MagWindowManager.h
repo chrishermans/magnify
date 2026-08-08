@@ -9,6 +9,8 @@
 // Calculates a lens size value that is slightly larger than (lens + increment) to give an extra buffer area on the edges
 #define LENS_SIZE_BUFFER_VALUE(LENS_SIZE_VALUE, RESIZE_INCREMENT_VALUE) (LENS_SIZE_VALUE + (2 * RESIZE_INCREMENT_VALUE))
 
+const int INIT_MAG_COUNT = 8;
+const float MAG_FACTOR_INCREMENT = 1.5f;
 
 class MagWindowManager
 {
@@ -26,7 +28,7 @@ public:
     {
         _mags = nullptr;
         _mousePoint = nullptr;
-        _magCount = 8;
+        _magCount = INIT_MAG_COUNT;
         _activeIndex = 0;
         _panOffset = { 0, 0 };
         _lensSize = lensSize;
@@ -51,7 +53,7 @@ public:
 
         for (int i = 0; i < _magCount; i++)
         {
-            _mags[i] = MagWindow((float)pow(1.5f, i + 1), { 0, 0 }, _lensSize);
+            _mags[i] = MagWindow((float)pow(MAG_FACTOR_INCREMENT, i + 1), { 0, 0 }, _lensSize);
             if (!_mags[i].Create(hInst, hwndHost, i == 0))
             {
                 return FALSE;

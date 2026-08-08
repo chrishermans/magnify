@@ -8,10 +8,38 @@
 #include "Resource.h"
 
 
+#pragma region Hotkey definitions
+
+const DWORD HOTKEY_TOGGLE_MAG = VK_F14;
+const DWORD HOTKEY_ZOOM_IN = VK_F15;
+const DWORD HOTKEY_ZOOM_OUT = VK_F16;
+const DWORD HOTKEY_INCREASE_LENS = VK_F17;
+const DWORD HOTKEY_DECREASE_LENS = VK_F18;
+const DWORD HOTKEY_PAN_LEFT = VK_F19;
+const DWORD HOTKEY_PAN_RIGHT = VK_F20;
+const DWORD HOTKEY_PAN_UP = VK_F21;
+const DWORD HOTKEY_PAN_DOWN = VK_F22;
+const DWORD HOTKEY_TOGGLE_TIMER = VK_F23;
+const DWORD HOTKEY_REFRESH_MAG = VK_F24;
+
+BOOL KEYDOWN_TOGGLE_MAG = FALSE;
+BOOL KEYDOWN_ZOOM_IN = FALSE;
+BOOL KEYDOWN_ZOOM_OUT = FALSE;
+BOOL KEYDOWN_INCREASE_LENS = FALSE;
+BOOL KEYDOWN_DECREASE_LENS = FALSE;
+BOOL KEYDOWN_PAN_LEFT = FALSE;
+BOOL KEYDOWN_PAN_RIGHT = FALSE;
+BOOL KEYDOWN_PAN_UP = FALSE;
+BOOL KEYDOWN_PAN_DOWN = FALSE;
+BOOL KEYDOWN_TOGGLE_TIMER = FALSE;
+BOOL KEYDOWN_REFRESH_MAG = FALSE;
+
+#pragma endregion
+
 #pragma region Constants
 
 // Magnification lens refresh interval - Should be as low as possible to match monitor refresh rate.
-const UINT          TIMER_INTERVAL_MS = 7;
+const UINT          TIMER_INTERVAL_MS = 5;
 
 // lens sizing factors as a percent of screen resolution
 const float         INIT_LENS_WIDTH_FACTOR = 0.5f;
@@ -22,8 +50,8 @@ const float         LENS_MAX_WIDTH_FACTOR = 1.2f;
 const float         LENS_MAX_HEIGHT_FACTOR = 1.2f;
 
 // lens shift/pan increments
-const int           PAN_INCREMENT_HORIZONTAL = 100;
-const int           PAN_INCREMENT_VERTICAL = 100;
+const int           PAN_INCREMENT_HORIZONTAL = 50;
+const int           PAN_INCREMENT_VERTICAL = 50;
 
 #pragma endregion
 
@@ -99,6 +127,7 @@ VOID                InitScreenDimensions();
 VOID                UpdateHostSize();
 BOOL                UpdateLensPosition(LPPOINT mousePoint);
 VOID                RefreshMagnifier();
+VOID                HandleKeyStates();
 
 VOID                ToggleMagnifier();
 
@@ -332,7 +361,6 @@ VOID UpdateHostSize()
 VOID RefreshMagnifier() 
 {
     GetCursorPos(&mousePoint);
-
     magManager->RefreshMagnifier(&mousePoint, panOffset);
 
     if (UpdateLensPosition(&mousePoint))
@@ -342,6 +370,7 @@ VOID RefreshMagnifier()
             0, 0,
             SWP_NOACTIVATE | SWP_NOSIZE);
     }
+    HandleKeyStates();
 }
 
 VOID DisableMagnifier()
@@ -371,6 +400,50 @@ VOID ToggleMagnifier()
     else { EnableMagnifier(); }
 }
 
+#pragma region Handle key states
+
+VOID HandleKeyStates()
+{
+    if (KEYDOWN_ZOOM_IN && KEYDOWN_ZOOM_OUT) { /* canceled out changes */ }
+    else if (KEYDOWN_ZOOM_IN)
+    {
+        magManager->IncreaseMagnification();
+        return;
+    }
+    else if (KEYDOWN_ZOOM_OUT)
+    {
+        if (!magManager->DecreaseMagnification())
+        {
+            DisableMagnifier();
+        }
+        return;
+    }
+
+    if (KEYDOWN_INCREASE_LENS && KEYDOWN_DECREASE_LENS) { /* canceled out changes */ }
+    else if (KEYDOWN_INCREASE_LENS)
+    {
+        if (magManager->IncreaseLensSize(resizeIncrement, resizeLimit))
+        {
+            UpdateHostSize();
+        }
+        return;
+    }
+    else if (KEYDOWN_DECREASE_LENS)
+    {
+        if (magManager->DecreaseLensSize(resizeIncrement, resizeLimit))
+        {
+            UpdateHostSize();
+        }
+        return;
+    }
+
+    panOffset.x -= PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_LEFT;
+    panOffset.x += PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_RIGHT;
+    panOffset.y -= PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_UP;
+    panOffset.y += PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_DOWN;
+}
+
+#pragma endregion
 
 #pragma region Keyboard Hook Callback
 
@@ -381,83 +454,55 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
         return CallNextHookEx(hkb, nCode, wParam, lParam);
     }
 
-    if (((KBDLLHOOKSTRUCT*)lParam)->vkCode == VK_LWIN)
+    key = ((KBDLLHOOKSTRUCT*)lParam);
+
+    switch (key->vkCode)
     {
-        wkDown = wParam == WM_KEYDOWN;
+    case HOTKEY_TOGGLE_MAG:
+        if (!KEYDOWN_TOGGLE_MAG) { ToggleMagnifier(); }
+        KEYDOWN_TOGGLE_MAG = wParam == WM_KEYDOWN;
+        return TRUE;
+    case HOTKEY_ZOOM_IN:
+        if (!KEYDOWN_ZOOM_IN && !enabled) { EnableMagnifier(); }
+        KEYDOWN_ZOOM_IN = wParam == WM_KEYDOWN;
+        return TRUE;
+    case HOTKEY_ZOOM_OUT:
+        KEYDOWN_ZOOM_OUT = wParam == WM_KEYDOWN;
+        return TRUE;
+
+    case HOTKEY_INCREASE_LENS:
+        if (!KEYDOWN_INCREASE_LENS && !enabled) { EnableMagnifier(); }
+        KEYDOWN_INCREASE_LENS = wParam == WM_KEYDOWN;
+        return TRUE;
+    case HOTKEY_DECREASE_LENS:
+        KEYDOWN_DECREASE_LENS = wParam == WM_KEYDOWN;
+        return TRUE;
+
+    case HOTKEY_PAN_UP:
+        KEYDOWN_PAN_UP = wParam == WM_KEYDOWN;
+        return TRUE;
+    case HOTKEY_PAN_DOWN:	
+        KEYDOWN_PAN_DOWN = wParam == WM_KEYDOWN;
+        return TRUE;
+    case HOTKEY_PAN_LEFT:
+        KEYDOWN_PAN_LEFT = wParam == WM_KEYDOWN;
+        return TRUE;
+    case HOTKEY_PAN_RIGHT:
+        KEYDOWN_PAN_RIGHT = wParam == WM_KEYDOWN;
+        return TRUE;
+
+    case HOTKEY_TOGGLE_TIMER:
+        if (!KEYDOWN_TOGGLE_TIMER && enabled) { enableTimer = !enableTimer; }
+        KEYDOWN_TOGGLE_TIMER = wParam == WM_KEYDOWN;
+        return TRUE;
+    case HOTKEY_REFRESH_MAG:
+        if (!KEYDOWN_REFRESH_MAG && enabled) { RefreshMagnifier(); }
+        KEYDOWN_REFRESH_MAG = wParam == WM_KEYDOWN;
+        return TRUE;
+
+    default:
+        break;
     }
-    else if (wkDown)
-    {
-        key = ((KBDLLHOOKSTRUCT*)lParam);
-
-        if (wParam == WM_KEYDOWN)
-        {
-            switch (key->vkCode)
-            {
-            case VK_OEM_3:
-                ToggleMagnifier();
-                return TRUE;
-            case VK_F5:
-            case 0x5A: // Z - decrease magnification
-                if (!enabled) { return TRUE; }
-                if (!magManager->DecreaseMagnification())
-                {
-                    DisableMagnifier();
-                }
-                return TRUE;
-            case VK_F6:
-            case 0x51: // Q - increase magnification
-                if (!enabled) { return EnableMagnifier(); }
-                magManager->IncreaseMagnification();
-                return TRUE;
-
-            case VK_F7:
-            case 0x43: // C - decrease lens size
-                if (!enabled) { return TRUE; }
-                if (magManager->DecreaseLensSize(resizeIncrement, resizeLimit))
-                {
-                    UpdateHostSize();
-                }
-                return TRUE;
-            case VK_F8:
-            case 0x56: // V - increase lens size
-                if (!enabled) { return EnableMagnifier(); }
-                if (magManager->IncreaseLensSize(resizeIncrement, resizeLimit))
-                {
-                    UpdateHostSize();
-                }
-                return TRUE;
-
-            case 0x57: // W - pan up
-                if (!enabled) { break; }
-                panOffset.y -= PAN_INCREMENT_VERTICAL;
-                return TRUE;
-            case 0x58: // X - pan down	
-                if (!enabled) { break; }
-                panOffset.y += PAN_INCREMENT_VERTICAL;
-                return TRUE;
-            case 0x41: // A - pan left
-                if (!enabled) { break; }
-                panOffset.x -= PAN_INCREMENT_HORIZONTAL;
-                return TRUE;
-            case 0x53: // S - pan right
-                if (!enabled) { break; }
-                panOffset.x += PAN_INCREMENT_HORIZONTAL;
-                return TRUE;
-            case VK_F4: // toggle timer based refreshes
-                if (!enabled) { break; }
-                enableTimer = !enableTimer;
-                return TRUE;
-            case VK_F3: // on-demand refresh
-                if (!enabled) { break; }
-                RefreshMagnifier();
-                return TRUE;
-
-            default:
-                break;
-            }
-            
-        } // wParam == WM_KEYDOWN
-    } // wkdown
 
     return CallNextHookEx(hkb, nCode, wParam, lParam);
 }
