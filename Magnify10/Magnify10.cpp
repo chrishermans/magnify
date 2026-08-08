@@ -10,17 +10,17 @@
 
 #pragma region Hotkey definitions
 
-const DWORD HOTKEY_TOGGLE_MAG = VK_F14;
+const DWORD HOTKEY_TOGGLE_MAG = VK_F13;
 const DWORD HOTKEY_ZOOM_IN = VK_F15;
-const DWORD HOTKEY_ZOOM_OUT = VK_F16;
-const DWORD HOTKEY_INCREASE_LENS = VK_F17;
-const DWORD HOTKEY_DECREASE_LENS = VK_F18;
+const DWORD HOTKEY_ZOOM_OUT = VK_F14;
+const DWORD HOTKEY_INCREASE_LENS = VK_F18;
+const DWORD HOTKEY_DECREASE_LENS = VK_F17;
 const DWORD HOTKEY_PAN_LEFT = VK_F19;
-const DWORD HOTKEY_PAN_RIGHT = VK_F20;
-const DWORD HOTKEY_PAN_UP = VK_F21;
-const DWORD HOTKEY_PAN_DOWN = VK_F22;
-const DWORD HOTKEY_TOGGLE_TIMER = VK_F23;
-const DWORD HOTKEY_REFRESH_MAG = VK_F24;
+const DWORD HOTKEY_PAN_RIGHT = VK_F24;
+const DWORD HOTKEY_PAN_UP = VK_F23;
+const DWORD HOTKEY_PAN_DOWN = VK_F20;
+const DWORD HOTKEY_TOGGLE_TIMER = VK_F21;
+const DWORD HOTKEY_REFRESH_MAG = VK_F22;
 
 BOOL KEYDOWN_TOGGLE_MAG = FALSE;
 BOOL KEYDOWN_ZOOM_IN = FALSE;
@@ -46,12 +46,12 @@ const float         INIT_LENS_WIDTH_FACTOR = 0.5f;
 const float         INIT_LENS_HEIGHT_FACTOR = 0.5f;
 const float         INIT_LENS_RESIZE_HEIGHT_FACTOR = 0.1f; 
 const float         INIT_LENS_RESIZE_WIDTH_FACTOR = 0.1f;
-const float         LENS_MAX_WIDTH_FACTOR = 1.2f;
-const float         LENS_MAX_HEIGHT_FACTOR = 1.2f;
+const float         LENS_MAX_WIDTH_FACTOR = 1.5f;
+const float         LENS_MAX_HEIGHT_FACTOR = 1.5f;
 
 // lens shift/pan increments
-const int           PAN_INCREMENT_HORIZONTAL = 50;
-const int           PAN_INCREMENT_VERTICAL = 50;
+const int           PAN_INCREMENT_HORIZONTAL = 20;
+const int           PAN_INCREMENT_VERTICAL = 15;
 
 #pragma endregion
 
@@ -127,7 +127,7 @@ VOID                InitScreenDimensions();
 VOID                UpdateHostSize();
 BOOL                UpdateLensPosition(LPPOINT mousePoint);
 VOID                RefreshMagnifier();
-VOID                HandleKeyStates();
+BOOL                HandleKeyStates();
 
 VOID                ToggleMagnifier();
 
@@ -402,45 +402,44 @@ VOID ToggleMagnifier()
 
 #pragma region Handle key states
 
-VOID HandleKeyStates()
+BOOL HandleKeyStates()
 {
-    if (KEYDOWN_ZOOM_IN && KEYDOWN_ZOOM_OUT) { /* canceled out changes */ }
-    else if (KEYDOWN_ZOOM_IN)
+    if (KEYDOWN_ZOOM_IN && !KEYDOWN_ZOOM_OUT)
     {
         magManager->IncreaseMagnification();
-        return;
+        return TRUE;
     }
-    else if (KEYDOWN_ZOOM_OUT)
+    if (KEYDOWN_ZOOM_OUT && !KEYDOWN_ZOOM_IN)
     {
         if (!magManager->DecreaseMagnification())
         {
             DisableMagnifier();
         }
-        return;
+        return TRUE;
     }
 
-    if (KEYDOWN_INCREASE_LENS && KEYDOWN_DECREASE_LENS) { /* canceled out changes */ }
-    else if (KEYDOWN_INCREASE_LENS)
+    if (KEYDOWN_INCREASE_LENS && !KEYDOWN_DECREASE_LENS)
     {
         if (magManager->IncreaseLensSize(resizeIncrement, resizeLimit))
         {
             UpdateHostSize();
         }
-        return;
+        return TRUE;
     }
-    else if (KEYDOWN_DECREASE_LENS)
+    if (KEYDOWN_DECREASE_LENS && !KEYDOWN_INCREASE_LENS)
     {
         if (magManager->DecreaseLensSize(resizeIncrement, resizeLimit))
         {
             UpdateHostSize();
         }
-        return;
+        return TRUE;
     }
 
     panOffset.x -= PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_LEFT;
     panOffset.x += PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_RIGHT;
     panOffset.y -= PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_UP;
     panOffset.y += PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_DOWN;
+    return FALSE;
 }
 
 #pragma endregion
@@ -455,6 +454,10 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     }
 
     key = ((KBDLLHOOKSTRUCT*)lParam);
+    if (key->vkCode < VK_F13 || key->vkCode > VK_F24)
+    {
+        return CallNextHookEx(hkb, nCode, wParam, lParam);
+    }
 
     switch (key->vkCode)
     {
