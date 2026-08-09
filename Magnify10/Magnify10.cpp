@@ -20,7 +20,7 @@ const DWORD HOTKEY_PAN_RIGHT = VK_F24;
 const DWORD HOTKEY_PAN_UP = VK_F23;
 const DWORD HOTKEY_PAN_DOWN = VK_F20;
 const DWORD HOTKEY_TOGGLE_TIMER = VK_F21;
-const DWORD HOTKEY_REFRESH_MAG = VK_F22;
+const DWORD HOTKEY_PAN_MOUSE = VK_F22;
 
 BOOL KEYDOWN_TOGGLE_MAG = FALSE;
 BOOL KEYDOWN_ZOOM_IN = FALSE;
@@ -32,7 +32,7 @@ BOOL KEYDOWN_PAN_RIGHT = FALSE;
 BOOL KEYDOWN_PAN_UP = FALSE;
 BOOL KEYDOWN_PAN_DOWN = FALSE;
 BOOL KEYDOWN_TOGGLE_TIMER = FALSE;
-BOOL KEYDOWN_REFRESH_MAG = FALSE;
+BOOL KEYDOWN_PAN_MOUSE = FALSE;
 
 #pragma endregion
 
@@ -67,6 +67,7 @@ SIZE                resizeLimit;
 
 // Current mouse location
 POINT               mousePoint;
+RECT                mouseLockPoint;
 
 #pragma endregion
 
@@ -91,7 +92,7 @@ POINT               panOffset;
 // Keyboard/Mouse hook 
 HHOOK               hkb;
 KBDLLHOOKSTRUCT*    key;
-BOOL                wkDown = FALSE;
+HHOOK               hMouseHook;
 
 // Timer interval structures
 union FILETIME64
@@ -120,6 +121,7 @@ ATOM                RegisterHostWindowClass(HINSTANCE hInstance);
 BOOL                SetupHostWindow(HINSTANCE hinst);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK    LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK    LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam);
 VOID CALLBACK       TimerTickEvent(PTP_CALLBACK_INSTANCE, VOID* context, PTP_TIMER);
 
 VOID                InitScreenDimensions();
@@ -128,6 +130,8 @@ VOID                UpdateHostSize();
 BOOL                UpdateLensPosition(LPPOINT mousePoint);
 VOID                RefreshMagnifier();
 BOOL                HandleKeyStates();
+VOID                StartPanMouse();
+VOID                StopPanMouse();
 
 VOID                ToggleMagnifier();
 
@@ -176,7 +180,7 @@ int APIENTRY WinMain(
 
     // Setup the keyboard hook to capture global hotkeys
     hkb = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, hInstance, 0);
-
+    hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc, hInstance, 0);
 
     // Create and start a timer to refresh the window. 
     refreshTimer = CreateThreadpoolTimer(TimerTickEvent, nullptr, nullptr);
@@ -200,6 +204,9 @@ int APIENTRY WinMain(
     delete hkb;
     key = 0;
     delete key;
+
+    UnhookWindowsHookEx(hMouseHook);
+    hMouseHook = NULL;
 
     SetThreadpoolTimer(refreshTimer, nullptr, 0, 0);
     Shell_NotifyIcon(NIM_DELETE, &nid);
@@ -314,7 +321,7 @@ BOOL SetupHostWindow(HINSTANCE hInst)
     return SetLayeredWindowAttributes(hwndHost, 0, 255, LWA_ALPHA);
 }
 
-VOID CALLBACK TimerTickEvent(PTP_CALLBACK_INSTANCE, void *context, PTP_TIMER)
+VOID CALLBACK TimerTickEvent(PTP_CALLBACK_INSTANCE, VOID* context, PTP_TIMER)
 {
     if (enableTimer)
     {
@@ -355,6 +362,8 @@ VOID UpdateHostSize()
         LENS_POSITION_VALUE(mousePoint.y, magManager->_lensSize.cy),
         magManager->_lensSize.cx, magManager->_lensSize.cy, // width|height of window
         SWP_NOACTIVATE);
+
+    magManager->RefreshMagnifier(&mousePoint, panOffset);
 }
 
 // Called in the timer tick event to refresh the magnification area drawn and lens (host window) position and size
@@ -368,7 +377,7 @@ VOID RefreshMagnifier()
         SetWindowPos(hwndHost, HWND_TOPMOST,
             lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
             0, 0,
-            SWP_NOACTIVATE | SWP_NOSIZE);
+            SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOREDRAW | (SWP_NOMOVE * KEYDOWN_PAN_MOUSE));
     }
     HandleKeyStates();
 }
@@ -380,12 +389,13 @@ VOID DisableMagnifier()
     SetThreadpoolTimer(refreshTimer, nullptr, 0, 0); // Stop the refresh timer
 
     // reset any panning that had been done
-    panOffset.x = 0;
-    panOffset.y = 0;
+    StopPanMouse();
 }
 
 BOOL EnableMagnifier()
 {
+    GetCursorPos(&mousePoint);
+    magManager->RefreshMagnifier(&mousePoint, panOffset);
     RefreshMagnifier(); // update position/rect before showing		
     enabled = TRUE;
     SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0); // Start the refresh timer
@@ -418,23 +428,6 @@ BOOL HandleKeyStates()
         return TRUE;
     }
 
-    if (KEYDOWN_INCREASE_LENS && !KEYDOWN_DECREASE_LENS)
-    {
-        if (magManager->IncreaseLensSize(resizeIncrement, resizeLimit))
-        {
-            UpdateHostSize();
-        }
-        return TRUE;
-    }
-    if (KEYDOWN_DECREASE_LENS && !KEYDOWN_INCREASE_LENS)
-    {
-        if (magManager->DecreaseLensSize(resizeIncrement, resizeLimit))
-        {
-            UpdateHostSize();
-        }
-        return TRUE;
-    }
-
     panOffset.x -= PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_LEFT;
     panOffset.x += PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_RIGHT;
     panOffset.y -= PAN_INCREMENT_VERTICAL * KEYDOWN_PAN_UP;
@@ -442,9 +435,28 @@ BOOL HandleKeyStates()
     return FALSE;
 }
 
+VOID StartPanMouse()
+{
+    mouseLockPoint.left = mousePoint.x;
+    mouseLockPoint.top = mousePoint.y;
+    mouseLockPoint.right = mousePoint.x;
+    mouseLockPoint.bottom = mousePoint.y;
+
+    ClipCursor(&mouseLockPoint); // locks mouse movement
+    MagShowSystemCursor(FALSE);
+}
+
+VOID StopPanMouse()
+{
+    panOffset.x = 0;
+    panOffset.y = 0;
+    MagShowSystemCursor(TRUE);
+    ClipCursor(NULL); // unlocks mouse movement
+}
+
 #pragma endregion
 
-#pragma region Keyboard Hook Callback
+#pragma region Keyboard & Mouse Hook Callback
 
 LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
@@ -466,25 +478,40 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
         KEYDOWN_TOGGLE_MAG = wParam == WM_KEYDOWN;
         return TRUE;
     case HOTKEY_ZOOM_IN:
-        if (!KEYDOWN_ZOOM_IN && !enabled) { EnableMagnifier(); }
         KEYDOWN_ZOOM_IN = wParam == WM_KEYDOWN;
+        if (KEYDOWN_ZOOM_IN && !enabled) { EnableMagnifier(); }
         return TRUE;
     case HOTKEY_ZOOM_OUT:
         KEYDOWN_ZOOM_OUT = wParam == WM_KEYDOWN;
         return TRUE;
 
     case HOTKEY_INCREASE_LENS:
-        if (!KEYDOWN_INCREASE_LENS && !enabled) { EnableMagnifier(); }
         KEYDOWN_INCREASE_LENS = wParam == WM_KEYDOWN;
+        if (KEYDOWN_INCREASE_LENS && !KEYDOWN_DECREASE_LENS)
+        {
+            if (!enabled) { EnableMagnifier(); }
+            else if (magManager->IncreaseLensSize(resizeIncrement, resizeLimit))
+            {
+                UpdateHostSize();
+            }
+        }
         return TRUE;
     case HOTKEY_DECREASE_LENS:
         KEYDOWN_DECREASE_LENS = wParam == WM_KEYDOWN;
+        if (KEYDOWN_DECREASE_LENS && !KEYDOWN_INCREASE_LENS)
+        {
+            if (!enabled) { EnableMagnifier(); }
+            else  if (magManager->DecreaseLensSize(resizeIncrement, resizeLimit))
+            {
+                UpdateHostSize();
+            }
+        }
         return TRUE;
 
     case HOTKEY_PAN_UP:
         KEYDOWN_PAN_UP = wParam == WM_KEYDOWN;
         return TRUE;
-    case HOTKEY_PAN_DOWN:	
+    case HOTKEY_PAN_DOWN:
         KEYDOWN_PAN_DOWN = wParam == WM_KEYDOWN;
         return TRUE;
     case HOTKEY_PAN_LEFT:
@@ -494,13 +521,15 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
         KEYDOWN_PAN_RIGHT = wParam == WM_KEYDOWN;
         return TRUE;
 
+    case HOTKEY_PAN_MOUSE:
+        KEYDOWN_PAN_MOUSE = wParam == WM_KEYDOWN;
+        if (KEYDOWN_PAN_MOUSE && enabled) { StartPanMouse(); }
+        else { StopPanMouse(); }
+        return TRUE;
+
     case HOTKEY_TOGGLE_TIMER:
         if (!KEYDOWN_TOGGLE_TIMER && enabled) { enableTimer = !enableTimer; }
         KEYDOWN_TOGGLE_TIMER = wParam == WM_KEYDOWN;
-        return TRUE;
-    case HOTKEY_REFRESH_MAG:
-        if (!KEYDOWN_REFRESH_MAG && enabled) { RefreshMagnifier(); }
-        KEYDOWN_REFRESH_MAG = wParam == WM_KEYDOWN;
         return TRUE;
 
     default:
@@ -508,6 +537,34 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     }
 
     return CallNextHookEx(hkb, nCode, wParam, lParam);
+}
+
+LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    if (nCode != HC_ACTION || wParam != WM_MOUSEMOVE ||
+        !KEYDOWN_PAN_MOUSE || !enabled)
+    {
+        return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
+    }
+
+    MSLLHOOKSTRUCT* mouseInfo = (MSLLHOOKSTRUCT*)lParam;
+    if (mouseInfo->pt.x != mousePoint.x || mouseInfo->pt.y != mousePoint.y)
+    {
+        int newOffsetX = panOffset.x + mouseInfo->pt.x - mousePoint.x;
+        int newOffsetY = panOffset.y + mouseInfo->pt.y - mousePoint.y;
+
+        if (mousePoint.x + newOffsetX > magManager->_lensSize.cx / -2 &&
+            mousePoint.x + newOffsetX < screenSize.cx + magManager->_lensSize.cx / 2)
+        {
+            panOffset.x = newOffsetX;
+        }
+        if (mousePoint.y + newOffsetY > magManager->_lensSize.cy / -2 &&
+            mousePoint.y + newOffsetY < screenSize.cy + magManager->_lensSize.cy / 2)
+        {
+            panOffset.y = newOffsetY;
+        }
+    }
+    
+    return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
 }
 
 #pragma endregion
