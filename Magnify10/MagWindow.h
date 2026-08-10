@@ -11,16 +11,23 @@ public:
     float _magFactor;
     POINT _windowPosition;
     SIZE _windowSize;
+    SIZE _screenSize;
 
     // Rectangle of screen that is centered at the mouse coordinates to be magnified.
     RECT _sourceRect;
 
-    VOID UpdateSourceRect(LPPOINT mousePoint, POINT panOffset, SIZE windowSize)
+    VOID UpdateSourceRect(LPPOINT mousePoint, POINT panOffset, SIZE lensSize, POINT lensPosition)
     {
-        _sourceRect.left = mousePoint->x + panOffset.x - (int)((windowSize.cx / 2) / _magFactor);
-        _sourceRect.top = mousePoint->y + panOffset.y - (int)((windowSize.cy / 2) / _magFactor);
-        _sourceRect.right = mousePoint->x + (int)((windowSize.cx / 2) / _magFactor);
-        _sourceRect.bottom = mousePoint->y + (int)((windowSize.cy / 2) / _magFactor);
+        // Proportional viewport | Bounded lens window
+        // Sync the viewport origin based on the lensPosition
+        // This maintains 1:1 cursor-to-content alignment even when lens is bounded by screen edges
+        int left = mousePoint->x + panOffset.x - static_cast<int>((mousePoint->x - lensPosition.x) / _magFactor);
+        int top = mousePoint->y + panOffset.y - static_cast<int>((mousePoint->y - lensPosition.y) / _magFactor);
+
+        _sourceRect.left = left;
+        _sourceRect.top = top;
+        _sourceRect.right = left + (lensSize.cx / _magFactor);
+        _sourceRect.bottom = top + (lensSize.cy / _magFactor);
     }
 
     BOOL SetMagnificationFactorInternal(float magFactor)
@@ -42,14 +49,16 @@ public:
         _windowSize = { 0, 0 };
         _windowPosition = { 0, 0 };
         _sourceRect = { 0, 0 };
+        _screenSize = SIZE();
     }
-    MagWindow(float magFactor, POINT windowPosition, SIZE windowSize)
+    MagWindow(float magFactor, POINT windowPosition, SIZE windowSize, SIZE screenSize)
     {
         _hwnd = nullptr;
         _magFactor = magFactor;
         _windowSize = windowSize;
         _windowPosition = windowPosition;
         _sourceRect = { 0, 0 };
+        _screenSize = screenSize;
     }
     ~MagWindow() {}
 
@@ -101,9 +110,9 @@ public:
                 SWP_NOREDRAW | SWP_NOMOVE);
     }
 
-    BOOL RefreshMagnifier(LPPOINT mousePoint, POINT panOffset, SIZE windowSize)
+    BOOL RefreshMagnifier(LPPOINT mousePoint, POINT panOffset, SIZE lensSize, POINT lensPosition)
     {
-        UpdateSourceRect(mousePoint, panOffset, windowSize);
+        UpdateSourceRect(mousePoint, panOffset, lensSize, lensPosition);
 
         // Set the source rectangle for the magnifier control.
         return MagSetWindowSource(_hwnd, _sourceRect);
