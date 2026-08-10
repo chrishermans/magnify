@@ -358,8 +358,7 @@ VOID UpdateHostSize()
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
 
     SetWindowPos(hwndHost, HWND_TOPMOST,
-        LENS_POSITION_VALUE(mousePoint.x, magManager->_lensSize.cx),
-        LENS_POSITION_VALUE(mousePoint.y, magManager->_lensSize.cy),
+        lensPosition.x, lensPosition.y,
         magManager->_lensSize.cx, magManager->_lensSize.cy, // width|height of window
         SWP_NOACTIVATE);
 
