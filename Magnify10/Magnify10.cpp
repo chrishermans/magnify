@@ -418,6 +418,11 @@ VOID ToggleMagnifier()
 
 BOOL HandleKeyStates()
 {
+    static unsigned int frameCounter = 0;
+    if (frameCounter++ % 2 == 0) {
+        return FALSE;
+    }
+
     if (KEYDOWN_ZOOM_IN && !KEYDOWN_ZOOM_OUT)
     {
         magManager->IncreaseMagnification(lensPosition);
