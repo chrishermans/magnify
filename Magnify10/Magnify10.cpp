@@ -355,7 +355,6 @@ BOOL UpdateLensPosition(LPPOINT mousePosition)
 VOID UpdateHostSize()
 {
     UpdateLensPosition(&mousePoint);
-
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
 
@@ -363,9 +362,6 @@ VOID UpdateHostSize()
         lensPosition.x, lensPosition.y,
         magManager->_lensSize.cx, magManager->_lensSize.cy, // width|height of window
         SWP_NOACTIVATE);
-
-    magManager->UpdateMagnification(magManager->_activeIndex, lensPosition);
-    magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
 }
 
 // Called in the timer tick event to refresh the magnification area drawn and lens (host window) position and size
@@ -375,15 +371,18 @@ VOID RefreshMagnifier()
     {
         GetCursorPos(&mousePoint);
     }
+    
+    BOOL positionUpdated = UpdateLensPosition(&mousePoint);
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
 
-    if (UpdateLensPosition(&mousePoint))
+    if (positionUpdated)
     {
         SetWindowPos(hwndHost, HWND_TOPMOST,
             lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
             0, 0,
             SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOREDRAW | (SWP_NOMOVE * panningEnabled));
     }
+
     HandleKeyStates();
 }
 
@@ -399,11 +398,9 @@ VOID DisableMagnifier()
 
 BOOL EnableMagnifier()
 {
-    GetCursorPos(&mousePoint);
-    magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
     RefreshMagnifier(); // update position/rect before showing		
-    enabled = TRUE;
     SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0); // Start the refresh timer
+    enabled = TRUE;
     ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
     return TRUE;
 }
