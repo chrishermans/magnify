@@ -67,6 +67,12 @@ public:
         return TRUE;
     }
 
+    VOID UpdateParameters(LPPOINT mousePoint, POINT panOffset)
+    {
+        _mousePoint = mousePoint;
+        _panOffset = panOffset;
+    }
+
     BOOL RefreshMagnifier(LPPOINT mousePoint, POINT panOffset, POINT lensPosition)
     {
         _mousePoint = mousePoint;

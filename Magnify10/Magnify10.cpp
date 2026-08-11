@@ -371,9 +371,13 @@ VOID RefreshMagnifier()
     {
         GetCursorPos(&mousePoint);
     }
-    
     BOOL positionUpdated = UpdateLensPosition(&mousePoint);
-    magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
+    magManager->UpdateParameters(&mousePoint, panOffset);
+
+    if (!HandleKeyStates())
+    {
+        magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
+    }
 
     if (positionUpdated)
     {
@@ -382,8 +386,6 @@ VOID RefreshMagnifier()
             0, 0,
             SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOREDRAW | (SWP_NOMOVE * panningEnabled));
     }
-
-    HandleKeyStates();
 }
 
 VOID DisableMagnifier()
