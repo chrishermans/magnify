@@ -437,6 +437,7 @@ BOOL HandleKeyStates()
         return TRUE;
     }
 
+    frameCounter = 1;
     return FALSE;
 }
 
