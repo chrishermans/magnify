@@ -57,12 +57,11 @@ public:
 
         for (int i = 0; i < _magCount; i++)
         {
-            _mags[i] = MagWindow(_magFactorCurve[i], { 0, 0 }, _lensSize, _screenSize);
+            _mags[i] = MagWindow(_magFactorCurve[i], { 0, 0 }, _screenSize);
             if (!_mags[i].Create(hInst, hwndHost, i == 0))
             {
                 return FALSE;
             }
-            _mags[i].SetSize(_lensSize.cx, _lensSize.cy);
         }
 
         return TRUE;
@@ -84,9 +83,6 @@ public:
         }
 
         _lensSize = newSize;
-        _mags[_activeIndex].SetSize(
-            min(_screenSize.cx, LENS_SIZE_BUFFER_VALUE(_lensSize.cx, resizeIncrement.cx)),
-            min(_screenSize.cy, LENS_SIZE_BUFFER_VALUE(_lensSize.cy, resizeIncrement.cy)));
         return TRUE;
     } 
 
@@ -99,8 +95,8 @@ public:
         
         _activeIndex = newIndex;
         return SetWindowPos(_mags[newIndex].GetHandle(), HWND_TOP,
-            0, 0, _lensSize.cx, _lensSize.cy,
-            SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOMOVE );
+            0, 0, 0, 0,
+            SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
     }
 
     BOOL IncreaseMagnification(POINT lensPosition)
