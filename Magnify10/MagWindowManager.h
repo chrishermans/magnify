@@ -13,10 +13,12 @@ const int INIT_MAG_COUNT = 16;
 
 class MagWindowManager
 {
-private:
+
+public:
     int _magCount;
     int _activeIndex;
     SIZE _screenSize;
+    SIZE _lensSize;
     MagWindow* _mags;
     LPPOINT _mousePoint;
     POINT _panOffset;
@@ -25,9 +27,6 @@ private:
         8.0f, 10.0f, 12.5f, 15.0f, 18.0f, 22.0f, 26.0f, 32.0f
     };
 
-public:
-    SIZE _lensSize;
-    
     MagWindowManager(SIZE lensSize, SIZE screenSize)
     {
         _mags = nullptr;

@@ -354,6 +354,8 @@ BOOL UpdateLensPosition(LPPOINT mousePosition)
 
 VOID UpdateHostSize()
 {
+    UpdateLensPosition(&mousePoint);
+
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
 
@@ -362,13 +364,17 @@ VOID UpdateHostSize()
         magManager->_lensSize.cx, magManager->_lensSize.cy, // width|height of window
         SWP_NOACTIVATE);
 
+    magManager->UpdateMagnification(magManager->_activeIndex, lensPosition);
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
 }
 
 // Called in the timer tick event to refresh the magnification area drawn and lens (host window) position and size
-VOID RefreshMagnifier() 
+VOID RefreshMagnifier()
 {
-    GetCursorPos(&mousePoint);
+    if (!panningEnabled)
+    {
+        GetCursorPos(&mousePoint);
+    }
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
 
     if (UpdateLensPosition(&mousePoint))
