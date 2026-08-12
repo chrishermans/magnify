@@ -401,13 +401,13 @@ VOID DisableMagnifier()
 BOOL EnableMagnifier()
 {
     RefreshMagnifier(); // update position/rect before showing		
-    SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0); // Start the refresh timer
+    magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
     enabled = TRUE;
+    SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0); // Start the refresh timer
     ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
     return TRUE;
 }
 
-// Toggles showing the magnifier
 VOID ToggleMagnifier()
 {
     if (enabled) { DisableMagnifier(); }
