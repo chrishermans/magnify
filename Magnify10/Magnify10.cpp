@@ -70,6 +70,7 @@ RECT                mouseLockPoint;
 const TCHAR         WindowClassName[] = TEXT("MagnifierWindow");
 
 // Window handles
+HINSTANCE           hMainInstance;
 HWND                hwndHost;
 
 MagWindowManager*   magManager;
@@ -141,6 +142,7 @@ int APIENTRY WinMain(
     _In_ LPSTR         /* lpCmdLine */,
     _In_ int           /* nCmdShow */)
 {
+    hMainInstance = hInstance;
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     InitScreenDimensions();
 
@@ -172,10 +174,8 @@ int APIENTRY WinMain(
     Shell_NotifyIcon(NIM_ADD, &nid);
     Shell_NotifyIcon(NIM_SETVERSION, &nid);
 
-
     // Setup the keyboard hook to capture global hotkeys
     hkb = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, hInstance, 0);
-    hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc, hInstance, 0);
 
     // Create and start a timer to refresh the window. 
     refreshTimer = CreateThreadpoolTimer(TimerTickEvent, nullptr, nullptr);
@@ -191,16 +191,18 @@ int APIENTRY WinMain(
 
 
     // Shut down.
-    enabled = FALSE; 
+    enabled = FALSE;
 
-    UnhookWindowsHookEx(hkb);
-    hkb = 0;
-    delete hkb;
-    key = 0;
-    delete key;
-
-    UnhookWindowsHookEx(hMouseHook);
-    hMouseHook = NULL;
+    if (hkb != NULL)
+    {
+        UnhookWindowsHookEx(hkb);
+        hkb = NULL;
+    }
+    if (hMouseHook != NULL)
+    {
+        UnhookWindowsHookEx(hMouseHook);
+        hMouseHook = NULL;
+    }
 
     SetThreadpoolTimer(refreshTimer, nullptr, 0, 0);
     Shell_NotifyIcon(NIM_DELETE, &nid);
@@ -445,6 +447,11 @@ BOOL HandleKeyStates()
 
 VOID StartPanMouse()
 {
+    if (hMouseHook == NULL)
+    {
+        hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc, hMainInstance, 0);
+    }
+
     mouseLockPoint.left = mousePoint.x;
     mouseLockPoint.top = mousePoint.y;
     mouseLockPoint.right = mousePoint.x;
@@ -457,6 +464,12 @@ VOID StartPanMouse()
 
 VOID StopPanMouse()
 {
+    if (hMouseHook != NULL)
+    {
+        UnhookWindowsHookEx(hMouseHook);
+        hMouseHook = NULL;
+    }
+
     panningEnabled = FALSE;
     panOffset.x = 0;
     panOffset.y = 0;
