@@ -31,7 +31,7 @@ BOOL KEYDOWN_TOGGLE_PAN_MOUSE = FALSE;
 #pragma region Constants
 
 // Magnification lens refresh interval - Should be as low as possible to match monitor refresh rate.
-const UINT          TIMER_INTERVAL_MS = 5;
+const UINT          TIMER_INTERVAL_MS = 7;
 
 // lens sizing factors as a percent of screen resolution
 const float         INIT_LENS_WIDTH_FACTOR = 0.5f;
@@ -59,6 +59,7 @@ SIZE                resizeLimit;
 
 // Current mouse location
 POINT               mousePoint;
+POINT               newMousePoint;
 RECT                mouseLockPoint;
 
 #pragma endregion
@@ -77,7 +78,6 @@ MagWindowManager*   magManager;
 
 // Show magnifier or not
 BOOL                enabled;
-BOOL                enableTimer;
 
 // lens pan offset x|y
 POINT               panOffset;
@@ -128,7 +128,7 @@ VOID                StartPanMouse();
 VOID                StopPanMouse();
 
 VOID                ToggleMagnifier();
-BOOL                EnableMagnifier();
+VOID                EnableMagnifier();
 VOID                DisableMagnifier();
 
 #pragma endregion
@@ -155,7 +155,6 @@ int APIENTRY WinMain(
     // Start as disabled
     ShowWindow(hwndHost, SW_HIDE);
     enabled = FALSE;
-    enableTimer = TRUE;
     panningEnabled = FALSE;
 
     // Create notification object for the task tray icon
@@ -179,7 +178,6 @@ int APIENTRY WinMain(
 
     // Create and start a timer to refresh the window. 
     refreshTimer = CreateThreadpoolTimer(TimerTickEvent, nullptr, nullptr);
-    SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0); // TODO: this only needs to be started if enabled at start
 
     // Main message loop. 
     MSG msg;
@@ -319,11 +317,7 @@ BOOL SetupHostWindow(HINSTANCE hInst)
 
 VOID CALLBACK TimerTickEvent(PTP_CALLBACK_INSTANCE, VOID* context, PTP_TIMER)
 {
-    if (enableTimer)
-    {
-        RefreshMagnifier();
-    }
-
+    RefreshMagnifier();
     if (enabled) // Reset timer to expire one time at next interval
     {
         SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0);
@@ -371,14 +365,18 @@ VOID RefreshMagnifier()
 {
     if (!panningEnabled)
     {
-        GetCursorPos(&mousePoint);
+        if (GetCursorPos(&newMousePoint)) { mousePoint = newMousePoint; }
+        else { return; }
     }
     BOOL positionUpdated = UpdateLensPosition(&mousePoint);
     magManager->UpdateParameters(&mousePoint, panOffset);
 
     if (!HandleKeyStates())
     {
-        magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
+        if (!magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition))
+        {
+            return;
+        }
     }
 
     if (positionUpdated)
@@ -400,14 +398,13 @@ VOID DisableMagnifier()
     StopPanMouse();
 }
 
-BOOL EnableMagnifier()
+VOID EnableMagnifier()
 {
     RefreshMagnifier(); // update position/rect before showing		
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
     enabled = TRUE;
     SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0); // Start the refresh timer
     ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
-    return TRUE;
 }
 
 VOID ToggleMagnifier()
