@@ -23,8 +23,8 @@ public:
     LPPOINT _mousePoint;
     POINT _panOffset;
     float _magFactorCurve[INIT_MAG_COUNT] = {
-        1.5f, 1.75f, 2.0f, 2.5f, 3.0f, 4.0f, 5.0f, 6.5f,
-        8.0f, 10.0f, 12.5f, 15.0f, 18.0f, 22.0f, 26.0f, 32.0f
+        1.5f, 1.75f, 2.0f, 2.5f, 3.0f, 3.5, 4.25f, 5.0f,
+        6.0f, 7.0f, 8.5f, 10.0f, 12.0f, 15.0f, 20.0f, 26.0f
     };
 
     MagWindowManager(SIZE lensSize, SIZE screenSize)
