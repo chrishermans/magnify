@@ -5,11 +5,8 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
+#include "Settings.h"
 
-// Calculates a lens size value that is slightly larger than (lens + increment) to give an extra buffer area on the edges
-#define LENS_SIZE_BUFFER_VALUE(LENS_SIZE_VALUE, RESIZE_INCREMENT_VALUE) (LENS_SIZE_VALUE + (2 * RESIZE_INCREMENT_VALUE))
-
-const int INIT_MAG_COUNT = 16;
 
 class MagWindowManager
 {
@@ -22,16 +19,12 @@ public:
     MagWindow* _mags;
     LPPOINT _mousePoint;
     POINT _panOffset;
-    float _magFactorCurve[INIT_MAG_COUNT] = {
-        1.5f, 1.75f, 2.0f, 2.5f, 3.0f, 3.5, 4.25f, 5.0f,
-        6.0f, 7.0f, 8.5f, 10.0f, 12.0f, 15.0f, 20.0f, 26.0f
-    };
 
     MagWindowManager(SIZE lensSize, SIZE screenSize)
     {
         _mags = nullptr;
         _mousePoint = nullptr;
-        _magCount = INIT_MAG_COUNT;
+        _magCount = Settings::Get().magnificationCurveCount;
         _activeIndex = 0;
         _panOffset = { 0, 0 };
         _lensSize = lensSize;
@@ -57,7 +50,7 @@ public:
 
         for (int i = 0; i < _magCount; i++)
         {
-            _mags[i] = MagWindow(_magFactorCurve[i], { 0, 0 }, _screenSize);
+            _mags[i] = MagWindow(Settings::Get().magnificationCurve[i], {0, 0}, _screenSize);
             if (!_mags[i].Create(hInst, hwndHost, i == 0))
             {
                 return FALSE;

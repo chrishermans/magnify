@@ -4,19 +4,16 @@
 #include <magnification.h> 
 #include <threadpoolapiset.h>
 #include <shellapi.h>
+#include <unordered_map>
+#include <functional>
 #include "MagWindowManager.h"
 #include "Resource.h"
-
+#include "Settings.h"
 
 #pragma region Hotkey definitions
 
-const DWORD HOTKEY_TOGGLE_MAG = VK_F13;
-const DWORD HOTKEY_ZOOM_IN = VK_F15;
-const DWORD HOTKEY_ZOOM_OUT = VK_F14;
-const DWORD HOTKEY_INCREASE_LENS = VK_F18;
-const DWORD HOTKEY_DECREASE_LENS = VK_F17;
-const DWORD HOTKEY_PAN_MOUSE = VK_F19;
-const DWORD HOTKEY_TOGGLE_PAN_MOUSE = VK_F20;
+using HotkeyHandler = std::function<BOOL(WPARAM)>;
+std::unordered_map<DWORD, HotkeyHandler> hotkeyHandlers;
 
 BOOL KEYDOWN_TOGGLE_MAG = FALSE;
 BOOL KEYDOWN_ZOOM_IN = FALSE;
@@ -29,9 +26,6 @@ BOOL KEYDOWN_TOGGLE_PAN_MOUSE = FALSE;
 #pragma endregion
 
 #pragma region Constants
-
-// Magnification lens refresh interval - Should be as low as possible to match monitor refresh rate.
-const UINT          TIMER_INTERVAL_MS = 7;
 
 // lens sizing factors as a percent of screen resolution
 const float         INIT_LENS_WIDTH_FACTOR = 0.5f;
@@ -99,8 +93,11 @@ FILETIME CreateRelativeFiletimeMS(DWORD milliseconds)
     FILETIME64 ft = { -static_cast<INT64>(milliseconds) * 10000 };
     return ft.ft;
 }
-FILETIME            timerDueTime = CreateRelativeFiletimeMS(TIMER_INTERVAL_MS);
+FILETIME            timerDueTime;
+FILETIME            timerDueTimeAfterEnable;
 PTP_TIMER           refreshTimer;
+DWORD               timerToleranceMs;
+int                 inputDelayFrames;
 
 #pragma endregion 
 
@@ -118,6 +115,7 @@ LRESULT CALLBACK    LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam
 LRESULT CALLBACK    LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam);
 VOID CALLBACK       TimerTickEvent(PTP_CALLBACK_INSTANCE, VOID* context, PTP_TIMER);
 
+VOID                InitHotkeyMap();
 VOID                InitScreenDimensions();
 
 VOID                UpdateHostSize();
@@ -143,6 +141,14 @@ int APIENTRY WinMain(
     _In_ int           /* nCmdShow */)
 {
     hMainInstance = hInstance;
+
+    Settings::LoadSettings();
+    timerDueTime = CreateRelativeFiletimeMS(Settings::Get().timerIntervalMs);
+    timerDueTimeAfterEnable = CreateRelativeFiletimeMS(Settings::Get().timerIntervalAfterEnableMs);
+    timerToleranceMs = Settings::Get().timerToleranceMs;
+    inputDelayFrames = Settings::Get().inputDelayFrames;
+    InitHotkeyMap();
+
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     InitScreenDimensions();
 
@@ -202,7 +208,7 @@ int APIENTRY WinMain(
         hMouseHook = NULL;
     }
 
-    SetThreadpoolTimer(refreshTimer, nullptr, 0, 0);
+    SetThreadpoolTimer(refreshTimer, nullptr, 0, timerToleranceMs);
     Shell_NotifyIcon(NIM_DELETE, &nid);
     MagUninitialize();
     magManager->DestroyWindows();
@@ -320,7 +326,7 @@ VOID CALLBACK TimerTickEvent(PTP_CALLBACK_INSTANCE, VOID* context, PTP_TIMER)
     RefreshMagnifier();
     if (enabled) // Reset timer to expire one time at next interval
     {
-        SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0);
+        SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, timerToleranceMs);
     }
 }
 
@@ -392,7 +398,7 @@ VOID DisableMagnifier()
 {
     ShowWindow(hwndHost, SW_HIDE);
     enabled = FALSE;
-    SetThreadpoolTimer(refreshTimer, nullptr, 0, 0); // Stop the refresh timer
+    SetThreadpoolTimer(refreshTimer, nullptr, 0, timerToleranceMs); // Stop the refresh timer
 
     // reset any panning that had been done
     StopPanMouse();
@@ -403,7 +409,7 @@ VOID EnableMagnifier()
     RefreshMagnifier(); // update position/rect before showing		
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
     enabled = TRUE;
-    SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, 0); // Start the refresh timer
+    SetThreadpoolTimer(refreshTimer, &timerDueTimeAfterEnable, 0, timerToleranceMs); // Start the refresh timer
     ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
 }
 
@@ -417,11 +423,6 @@ VOID ToggleMagnifier()
 
 BOOL HandleKeyStates()
 {
-    static unsigned int frameCounter = 0;
-    if (frameCounter++ % 2 == 0) {
-        return FALSE;
-    }
-
     if (KEYDOWN_ZOOM_IN && !KEYDOWN_ZOOM_OUT)
     {
         magManager->IncreaseMagnification(lensPosition);
@@ -436,7 +437,6 @@ BOOL HandleKeyStates()
         return TRUE;
     }
 
-    frameCounter = 1;
     return FALSE;
 }
 
@@ -476,6 +476,92 @@ VOID StopPanMouse()
 
 #pragma region Keyboard & Mouse Hook Callback
 
+VOID InitHotkeyMap()
+{
+    hotkeyHandlers.clear();
+
+    hotkeyHandlers[Settings::Get().hotkeyToggleMag] = [](WPARAM wParam) -> BOOL
+        {
+            bool keyDown = (wParam == WM_KEYDOWN);
+            if (keyDown && !KEYDOWN_TOGGLE_MAG)
+            {
+                ToggleMagnifier();
+            }
+            KEYDOWN_TOGGLE_MAG = keyDown;
+            return TRUE;
+        };
+
+    hotkeyHandlers[Settings::Get().hotkeyZoomIn] = [](WPARAM wParam) -> BOOL
+        {
+            KEYDOWN_ZOOM_IN = (wParam == WM_KEYDOWN);
+            if (KEYDOWN_ZOOM_IN && !enabled) { EnableMagnifier(); }
+            return TRUE;
+        };
+
+    hotkeyHandlers[Settings::Get().hotkeyZoomOut] = [](WPARAM wParam) -> BOOL
+        {
+            KEYDOWN_ZOOM_OUT = (wParam == WM_KEYDOWN);
+            return TRUE;
+        };
+
+    hotkeyHandlers[Settings::Get().hotkeyIncreaseLens] = [](WPARAM wParam) -> BOOL
+        {
+            KEYDOWN_INCREASE_LENS = (wParam == WM_KEYDOWN);
+            if (KEYDOWN_INCREASE_LENS && !KEYDOWN_DECREASE_LENS)
+            {
+                if (!enabled) { EnableMagnifier(); }
+                else if (magManager->IncreaseLensSize(resizeIncrement, resizeLimit))
+                {
+                    UpdateHostSize();
+                }
+            }
+            return TRUE;
+        };
+
+    hotkeyHandlers[Settings::Get().hotkeyDecreaseLens] = [](WPARAM wParam) -> BOOL
+        {
+            KEYDOWN_DECREASE_LENS = (wParam == WM_KEYDOWN);
+            if (KEYDOWN_DECREASE_LENS && !KEYDOWN_INCREASE_LENS)
+            {
+                if (!enabled) { EnableMagnifier(); }
+                else  if (magManager->DecreaseLensSize(resizeIncrement, resizeLimit))
+                {
+                    UpdateHostSize();
+                }
+            }
+            return TRUE;
+        };
+
+    hotkeyHandlers[Settings::Get().hotkeyPanMouse] = [](WPARAM wParam) -> BOOL
+        {
+            BOOL keyDown = (wParam == WM_KEYDOWN);
+            if (keyDown != KEYDOWN_PAN_MOUSE)
+            {
+                KEYDOWN_PAN_MOUSE = keyDown;
+                if (KEYDOWN_PAN_MOUSE && enabled && !panningEnabled)
+                {
+                    StartPanMouse();
+                }
+                else if (!KEYDOWN_PAN_MOUSE && enabled && panningEnabled)
+                {
+                    StopPanMouse();
+                }
+            }
+            return TRUE;
+        };
+
+    hotkeyHandlers[Settings::Get().hotkeyTogglePanMouse] = [](WPARAM wParam) -> BOOL
+        {
+            if (wParam == WM_KEYDOWN && !KEYDOWN_TOGGLE_PAN_MOUSE && !KEYDOWN_PAN_MOUSE && enabled)
+            {
+                if (!panningEnabled) { StartPanMouse(); }
+                else { StopPanMouse(); }
+            }
+            KEYDOWN_TOGGLE_PAN_MOUSE = (wParam == WM_KEYDOWN);
+            return TRUE;
+        };
+}
+
 LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode != HC_ACTION) // do not process message 
@@ -484,89 +570,18 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     }
 
     key = ((KBDLLHOOKSTRUCT*)lParam);
-    if (key->vkCode < VK_F13 || key->vkCode > VK_F24)
+
+    auto it = hotkeyHandlers.find(key->vkCode);
+    if (it != hotkeyHandlers.end())
     {
-        return CallNextHookEx(hkb, nCode, wParam, lParam);
-    }
-
-    switch (key->vkCode)
-    {
-    case HOTKEY_TOGGLE_MAG:
-    {
-        bool keyDown = (wParam == WM_KEYDOWN);
-        if (keyDown && !KEYDOWN_TOGGLE_MAG)
-        {
-            ToggleMagnifier();
-        }
-        KEYDOWN_TOGGLE_MAG = keyDown;
-        return TRUE;
-    }
-
-    case HOTKEY_ZOOM_IN:
-        KEYDOWN_ZOOM_IN = wParam == WM_KEYDOWN;
-        if (KEYDOWN_ZOOM_IN && !enabled) { EnableMagnifier(); }
-        return TRUE;
-    case HOTKEY_ZOOM_OUT:
-        KEYDOWN_ZOOM_OUT = wParam == WM_KEYDOWN;
-        return TRUE;
-
-    case HOTKEY_INCREASE_LENS:
-        KEYDOWN_INCREASE_LENS = wParam == WM_KEYDOWN;
-        if (KEYDOWN_INCREASE_LENS && !KEYDOWN_DECREASE_LENS)
-        {
-            if (!enabled) { EnableMagnifier(); }
-            else if (magManager->IncreaseLensSize(resizeIncrement, resizeLimit))
-            {
-                UpdateHostSize();
-            }
-        }
-        return TRUE;
-    case HOTKEY_DECREASE_LENS:
-        KEYDOWN_DECREASE_LENS = wParam == WM_KEYDOWN;
-        if (KEYDOWN_DECREASE_LENS && !KEYDOWN_INCREASE_LENS)
-        {
-            if (!enabled) { EnableMagnifier(); }
-            else  if (magManager->DecreaseLensSize(resizeIncrement, resizeLimit))
-            {
-                UpdateHostSize();
-            }
-        }
-        return TRUE;
-
-    case HOTKEY_PAN_MOUSE:
-    {
-        BOOL keyDown = wParam == WM_KEYDOWN;
-        if (keyDown != KEYDOWN_PAN_MOUSE)
-        {
-            KEYDOWN_PAN_MOUSE = keyDown;
-            if (KEYDOWN_PAN_MOUSE && enabled && !panningEnabled)
-            {
-                StartPanMouse();
-            }
-            else if (!KEYDOWN_PAN_MOUSE && enabled && panningEnabled)
-            {
-                StopPanMouse();
-            }
-        }
-        return TRUE;
-    }
-    case HOTKEY_TOGGLE_PAN_MOUSE:
-        if (wParam == WM_KEYDOWN && !KEYDOWN_TOGGLE_PAN_MOUSE && !KEYDOWN_PAN_MOUSE && enabled)
-        {
-            if (!panningEnabled) { StartPanMouse(); }
-            else { StopPanMouse(); }
-        }
-        KEYDOWN_TOGGLE_PAN_MOUSE = wParam == WM_KEYDOWN;
-        return TRUE;
-
-    default:
-        break;
+        if (it->second(wParam)) { return TRUE; }
     }
 
     return CallNextHookEx(hkb, nCode, wParam, lParam);
 }
 
-LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
     if (nCode != HC_ACTION || wParam != WM_MOUSEMOVE ||
         !panningEnabled || !enabled)
     {
