@@ -406,8 +406,20 @@ VOID DisableMagnifier()
 
 VOID EnableMagnifier()
 {
-    RefreshMagnifier(); // update position/rect before showing		
+    if (GetCursorPos(&newMousePoint)) { mousePoint = newMousePoint; }
+    else { return; }
+    BOOL positionUpdated = UpdateLensPosition(&mousePoint);
+    magManager->UpdateParameters(&mousePoint, panOffset);
     magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
+    magManager->RefreshMagnifier(&mousePoint, panOffset, lensPosition);
+    if (positionUpdated)
+    {
+        SetWindowPos(hwndHost, HWND_TOPMOST,
+            lensPosition.x, lensPosition.y, // x|y coordinate of top left corner
+            0, 0,
+            SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOREDRAW | (SWP_NOMOVE * panningEnabled));
+    }
+
     enabled = TRUE;
     SetThreadpoolTimer(refreshTimer, &timerDueTimeAfterEnable, 0, timerToleranceMs); // Start the refresh timer
     ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
