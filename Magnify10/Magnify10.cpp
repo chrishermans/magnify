@@ -605,16 +605,10 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
     {
         int newPanX = panOffset.x + mouseInfo->pt.x - mousePoint.x;
         int newPanY = panOffset.y + mouseInfo->pt.y - mousePoint.y;
-
-        int halfSrcWidth = (magManager->_lensSize.cx / magManager->GetMagFactor()) / -2;
-        int halfSrcHeight = (magManager->_lensSize.cy / magManager->GetMagFactor()) / -2;
-        int trackingAdjustmentX = (mousePoint.x - lensPosition.x) / magManager->GetMagFactor();
-        int trackingAdjustmentY = (mousePoint.y - lensPosition.y) / magManager->GetMagFactor();
-
-        int minPanX = halfSrcWidth - mousePoint.x + trackingAdjustmentX;
-        int minPanY = halfSrcHeight - mousePoint.y + trackingAdjustmentY;
-        int maxPanX = screenSize.cx + halfSrcWidth - mousePoint.x + trackingAdjustmentX;
-        int maxPanY = screenSize.cy + halfSrcHeight - mousePoint.y + trackingAdjustmentY;
+        int minPanX = (mousePoint.x - lensPosition.x - magManager->_lensSize.cx / 2) / magManager->GetMagFactor() - mousePoint.x;
+        int minPanY = (mousePoint.y - lensPosition.y - magManager->_lensSize.cy / 2) / magManager->GetMagFactor() - mousePoint.y;
+        int maxPanX = minPanX + screenSize.cx;
+        int maxPanY = minPanY + screenSize.cy;
 
         panOffset.x = max(minPanX, min(newPanX, maxPanX));
         panOffset.y = max(minPanY, min(newPanY, maxPanY));
