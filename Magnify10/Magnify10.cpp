@@ -435,6 +435,12 @@ VOID ToggleMagnifier()
 
 BOOL HandleKeyStates()
 {
+    static int frameCounter = 0;
+    if (frameCounter++ % inputDelayFrames != 0)
+    {
+        return FALSE;
+    }
+
     if (KEYDOWN_ZOOM_IN && !KEYDOWN_ZOOM_OUT)
     {
         magManager->IncreaseMagnification(lensPosition);
@@ -449,6 +455,7 @@ BOOL HandleKeyStates()
         return TRUE;
     }
 
+    frameCounter = 0;
     return FALSE;
 }
 
@@ -582,7 +589,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     }
 
     key = ((KBDLLHOOKSTRUCT*)lParam);
-
+    
     auto it = hotkeyHandlers.find(key->vkCode);
     if (it != hotkeyHandlers.end())
     {

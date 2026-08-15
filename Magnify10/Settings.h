@@ -45,6 +45,7 @@ public:
         Get().timerIntervalAfterEnableMs = ReadDword(L"Settings", L"timerIntervalAfterEnableMs", L"7", iniPath, 10);
         Get().timerToleranceMs = ReadDword(L"Settings", L"timerToleranceMs", L"0", iniPath, 10);
         Get().inputDelayFrames = GetPrivateProfileIntW(L"Settings", L"inputDelayFrames", 1, iniPath.c_str());
+        Get().inputDelayFrames = max(0, min(Get().inputDelayFrames, 10)) + 1;
 
         wchar_t curveBuffer[256];
         GetPrivateProfileStringW(L"Settings", L"MagnificationCurve",
