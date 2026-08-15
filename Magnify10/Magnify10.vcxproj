@@ -175,9 +175,10 @@
     <Image Include="Magnify10.ico" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Magnify10.ini">
+    <CopyFileToFolders Include="Magnify10.ini">
       <DeploymentContent>true</DeploymentContent>
-    </None>
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

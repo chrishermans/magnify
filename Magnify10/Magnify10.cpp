@@ -158,7 +158,7 @@ int APIENTRY WinMain(
     if (!magManager->Create(hInstance, hwndHost)) { return 0; }
     if (!UpdateWindow(hwndHost)) { return 0; }
 
-    // Start as disabled
+    // initialize lens as disabled
     ShowWindow(hwndHost, SW_HIDE);
     enabled = FALSE;
     panningEnabled = FALSE;
@@ -182,8 +182,13 @@ int APIENTRY WinMain(
     // Setup the keyboard hook to capture global hotkeys
     hkb = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, hInstance, 0);
 
-    // Create and start a timer to refresh the window. 
+    // Create a timer to refresh the window. 
     refreshTimer = CreateThreadpoolTimer(TimerTickEvent, nullptr, nullptr);
+
+    if (Settings::Get().startEnabled)
+    {
+        EnableMagnifier();
+    }
 
     // Main message loop. 
     MSG msg;

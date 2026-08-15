@@ -57,8 +57,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="Magnify10.ini">
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="Magnify10.ini">
       <Filter>Resource Files</Filter>
-    </None>
+    </CopyFileToFolders>
   </ItemGroup>
 </Project>
