@@ -1,17 +1,18 @@
 
 #include "stdafx.h"
-#include <magnification.h> 
+#include <magnification.h>
 #include <threadpoolapiset.h>
 #include <shellapi.h>
 #include <sstream>
 #include <unordered_map>
 #include <functional>
-#include "MagWindowManager.h"
 #include "Resource.h"
-#include "Global.h"
 #include "Config.h"
+#include "Global.h"
+#include "MagWindow.h"
+#include "MagWindowManager.h"
 
-#pragma region Hotkey definitions
+#pragma region Hotkey States
 
 using HotkeyHandler = std::function<BOOL(WPARAM)>;
 std::unordered_map<DWORD, HotkeyHandler> hotkeyHandlers;
@@ -39,7 +40,6 @@ MagWindowManager*   magManager;
 
 // Keyboard/Mouse hook 
 HHOOK               hkb;
-KBDLLHOOKSTRUCT*    key;
 HHOOK               hMouseHook;
 
 // Timer interval structures
@@ -108,7 +108,7 @@ int APIENTRY WinMain(
 
     // initialize lens as disabled
     ShowWindow(hwndHost, SW_HIDE);
-    Global::showLens = FALSE;
+    Global::lensEnabled = FALSE;
     Global::panningEnabled = FALSE;
 
     // Create notification object for the task tray icon
@@ -133,6 +133,7 @@ int APIENTRY WinMain(
     // Create a timer to refresh the window. 
     refreshTimer = CreateThreadpoolTimer(TimerTickEvent, nullptr, nullptr);
 
+    DisableMagnifier();
     if (Config::startEnabled)
     {
         EnableMagnifier();
@@ -258,7 +259,7 @@ BOOL SetupHostWindow(HINSTANCE hInst)
 VOID CALLBACK TimerTickEvent(PTP_CALLBACK_INSTANCE, VOID* context, PTP_TIMER)
 {
     RefreshMagnifier();
-    if (Global::showLens) // Reset timer to expire one time at next interval
+    if (Global::lensEnabled) // Reset timer to expire one time at next interval
     {
         SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, Config::timerToleranceMs);
     }
@@ -305,7 +306,7 @@ VOID RefreshMagnifier()
 VOID DisableMagnifier()
 {
     ShowWindow(hwndHost, SW_HIDE);
-    Global::showLens = FALSE;
+    Global::lensEnabled = FALSE;
     SetThreadpoolTimer(refreshTimer, nullptr, 0, Config::timerToleranceMs); // Stop the refresh timer
 
     // reset any panning that had been done
@@ -325,14 +326,14 @@ VOID EnableMagnifier()
             SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOREDRAW | (SWP_NOMOVE * Global::panningEnabled));
     }
 
-    Global::showLens = TRUE;
+    Global::lensEnabled = TRUE;
     SetThreadpoolTimer(refreshTimer, &timerDueTimeAfterEnable, 0, Config::timerToleranceMs); // Start the refresh timer
     ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
 }
 
 VOID ToggleMagnifier()
 {
-    if (Global::showLens) { DisableMagnifier(); }
+    if (Global::lensEnabled) { DisableMagnifier(); }
     else { EnableMagnifier(); }
 }
 
@@ -418,7 +419,7 @@ VOID InitHotkeyMap()
     hotkeyHandlers[Config::hotkeyZoomIn] = [](WPARAM wParam) -> BOOL
         {
             KEYDOWN_ZOOM_IN = (wParam == WM_KEYDOWN);
-            if (KEYDOWN_ZOOM_IN && !Global::showLens) { EnableMagnifier(); }
+            if (KEYDOWN_ZOOM_IN && !Global::lensEnabled) { EnableMagnifier(); }
             return TRUE;
         };
 
@@ -433,8 +434,8 @@ VOID InitHotkeyMap()
             KEYDOWN_INCREASE_LENS = (wParam == WM_KEYDOWN);
             if (KEYDOWN_INCREASE_LENS && !KEYDOWN_DECREASE_LENS)
             {
-                if (!Global::showLens) { EnableMagnifier(); }
-                else if (Global::UpdateLensSize())
+                if (!Global::lensEnabled) { EnableMagnifier(); }
+                else if (Global::UpdateLensSize(1.0f))
                 {
                     UpdateHostSize();
                 }
@@ -447,8 +448,8 @@ VOID InitHotkeyMap()
             KEYDOWN_DECREASE_LENS = (wParam == WM_KEYDOWN);
             if (KEYDOWN_DECREASE_LENS && !KEYDOWN_INCREASE_LENS)
             {
-                if (!Global::showLens) { EnableMagnifier(); }
-                else if (Global::UpdateLensSize(-1))
+                if (!Global::lensEnabled) { EnableMagnifier(); }
+                else if (Global::UpdateLensSize(-1.0f))
                 {
                     UpdateHostSize();
                 }
@@ -462,7 +463,7 @@ VOID InitHotkeyMap()
             if (keyDown != KEYDOWN_PAN_MOUSE)
             {
                 KEYDOWN_PAN_MOUSE = keyDown;
-                if (Global::showLens)
+                if (Global::lensEnabled)
                 {
                     if (KEYDOWN_PAN_MOUSE && !Global::panningEnabled)
                     {
@@ -479,7 +480,7 @@ VOID InitHotkeyMap()
 
     hotkeyHandlers[Config::hotkeyTogglePanMouse] = [](WPARAM wParam) -> BOOL
         {
-            if (wParam == WM_KEYDOWN && !KEYDOWN_TOGGLE_PAN_MOUSE && !KEYDOWN_PAN_MOUSE && Global::showLens)
+            if (wParam == WM_KEYDOWN && !KEYDOWN_TOGGLE_PAN_MOUSE && !KEYDOWN_PAN_MOUSE && Global::lensEnabled)
             {
                 if (!Global::panningEnabled) { StartPanMouse(); }
                 else { StopPanMouse(); }
@@ -496,8 +497,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
         return CallNextHookEx(hkb, nCode, wParam, lParam);
     }
 
-    key = ((KBDLLHOOKSTRUCT*)lParam);
-    
+    KBDLLHOOKSTRUCT* key = (KBDLLHOOKSTRUCT*)lParam;
     auto it = hotkeyHandlers.find(key->vkCode);
     if (it != hotkeyHandlers.end())
     {
@@ -510,7 +510,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode != HC_ACTION || wParam != WM_MOUSEMOVE ||
-        !Global::panningEnabled || !Global::showLens)
+        !Global::panningEnabled || !Global::lensEnabled)
     {
         return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
     }

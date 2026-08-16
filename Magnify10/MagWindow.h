@@ -1,23 +1,16 @@
 #pragma once
 
-#include "Global.h"
 
 class MagWindow
 {
-
 public:
-    
     HWND _hwnd;
     float _magFactor;
-
-    // Rectangle of screen that is centered at the mouse coordinates to be magnified.
-    RECT _sourceRect;
 
     MagWindow()
     {
         _hwnd = nullptr;
         _magFactor = 1;
-        _sourceRect = { 0, 0 };
     }
     ~MagWindow() {}
 
@@ -63,13 +56,15 @@ public:
         int left = Global::mousePoint.x - static_cast<int>((Global::mousePoint.x - Global::lensPosition.x) / _magFactor);
         int top = Global::mousePoint.y - static_cast<int>((Global::mousePoint.y - Global::lensPosition.y) / _magFactor);
 
-        _sourceRect.left = left;
-        _sourceRect.top = top;
-        _sourceRect.right = left + (Global::lensSize.cx / _magFactor);
-        _sourceRect.bottom = top + (Global::lensSize.cy / _magFactor);
+        // Rectangle of screen that is magnified.
+        RECT sourceRect;
+        sourceRect.left = left;
+        sourceRect.top = top;
+        sourceRect.right = left + (Global::lensSize.cx / _magFactor);
+        sourceRect.bottom = top + (Global::lensSize.cy / _magFactor);
 
         // Set the source rectangle for the magnifier control.
-        return MagSetWindowSource(_hwnd, _sourceRect);
+        return MagSetWindowSource(_hwnd, sourceRect);
     }
 
 };

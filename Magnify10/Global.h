@@ -1,16 +1,15 @@
 #pragma once
 
-#include "Config.h"
 
 #pragma region Lens Size Constants
 
 // lens sizing factors as a percent of screen resolution
-const float         INIT_LENS_WIDTH_FACTOR = 0.5f;
-const float         INIT_LENS_HEIGHT_FACTOR = 0.5f;
-const float         INIT_LENS_RESIZE_HEIGHT_FACTOR = 0.1f;
-const float         INIT_LENS_RESIZE_WIDTH_FACTOR = 0.1f;
-const float         LENS_MAX_WIDTH_FACTOR = 1.0f;
-const float         LENS_MAX_HEIGHT_FACTOR = 1.0f;
+const float INIT_LENS_WIDTH_FACTOR = 0.5f;
+const float INIT_LENS_HEIGHT_FACTOR = 0.5f;
+const float INIT_LENS_RESIZE_HEIGHT_FACTOR = 0.1f;
+const float INIT_LENS_RESIZE_WIDTH_FACTOR = 0.1f;
+const float LENS_MAX_WIDTH_FACTOR = 1.0f;
+const float LENS_MAX_HEIGHT_FACTOR = 1.0f;
 
 #pragma endregion
 
@@ -22,7 +21,7 @@ namespace Global {
     inline POINT lensPosition;
     inline POINT mousePoint;
     inline POINT mouseLockPoint;
-    inline BOOL showLens;
+    inline BOOL lensEnabled;
     inline BOOL panningEnabled;
 
     inline VOID UpdateScreenSize()
@@ -38,7 +37,7 @@ namespace Global {
         lensSizeLimit.cy = (int)(screenSize.cy * LENS_MAX_HEIGHT_FACTOR);
     }
 
-    inline BOOL UpdateLensSize(float incrementFactor = 1.0f)
+    inline BOOL UpdateLensSize(float incrementFactor)
     {
         SIZE newSize = { lensSize.cx + lensSizeIncrement.cx * incrementFactor,
                          lensSize.cy + lensSizeIncrement.cy * incrementFactor };
@@ -56,14 +55,17 @@ namespace Global {
     {
         if (!panningEnabled) { return; }
 
+        float denom = newMagFactor - 1.0f;
+        float scale = newMagFactor / denom;
+
         if (Config::proportionalPanning)
         {
-            int newPanX = mousePoint.x + dx;
-            int newPanY = mousePoint.y + dy;
-            int minPanX = 0;
-            int minPanY = 0;
-            int maxPanX = minPanX + screenSize.cx;
-            int maxPanY = minPanY + screenSize.cx;
+            float newPanX = mousePoint.x + dx;
+            float newPanY = mousePoint.y + dy;
+            float minPanX = -lensPosition.x / denom;
+            float minPanY = -lensPosition.y / denom;
+            float maxPanX = minPanX + (screenSize.cx * scale) - (lensSize.cx / denom);
+            float maxPanY = minPanY + (screenSize.cy * scale) - (lensSize.cy / denom);
 
             mousePoint.x = max(minPanX, min(newPanX, maxPanX));
             mousePoint.y = max(minPanY, min(newPanY, maxPanY));
@@ -72,19 +74,12 @@ namespace Global {
         {
             float lensCenterX = lensPosition.x + (lensSize.cx / 2);
             float lensCenterY = lensPosition.y + (lensSize.cy / 2);
-
-            if (magFactor != newMagFactor)
-            {
-                float zoomRatio = (newMagFactor / magFactor) * ((magFactor - 1.0f) / (newMagFactor - 1.0f));
-                mousePoint.x = lensCenterX + (mousePoint.x - lensCenterX) * zoomRatio;
-                mousePoint.y = lensCenterY + (mousePoint.y - lensCenterY) * zoomRatio;
-            }
+            float magFactorRatio = (newMagFactor / magFactor) * ((magFactor - 1.0f) / (newMagFactor - 1.0f));
+            mousePoint.x = lensCenterX + (mousePoint.x - lensCenterX) * magFactorRatio;
+            mousePoint.y = lensCenterY + (mousePoint.y - lensCenterY) * magFactorRatio;
 
             float newPanX = mousePoint.x + dx;
             float newPanY = mousePoint.y + dy;
-
-            float denom = newMagFactor - 1.0f;
-            float scale = newMagFactor / denom;
             float minPanX = -lensCenterX / denom;
             float minPanY = -lensCenterY / denom;
             float maxPanX = minPanX + screenSize.cx * scale;

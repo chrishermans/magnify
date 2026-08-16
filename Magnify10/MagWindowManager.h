@@ -1,13 +1,8 @@
 #pragma once
 
-#include "MagWindow.h"
-#include "Global.h"
-#include "Config.h"
-
 
 class MagWindowManager
 {
-
 public:
     int _magCount;
     int _activeIndex;
