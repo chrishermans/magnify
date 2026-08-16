@@ -57,9 +57,14 @@ public:
     {
         if (newIndex >= _magCount || newIndex < 0) { return FALSE; }
 
+        Global::UpdatePanningMousePoint(
+            _mags[_activeIndex]._magFactor,
+            _mags[newIndex]._magFactor,
+            0, 0);
+
         _mags[newIndex].RefreshMagnifier();
         _mags[newIndex].RefreshMagnifier();
-        
+
         _activeIndex = newIndex;
         return SetWindowPos(_mags[newIndex]._hwnd, HWND_TOP,
             0, 0, 0, 0,

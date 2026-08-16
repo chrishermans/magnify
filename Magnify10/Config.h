@@ -13,6 +13,7 @@ namespace Config
     inline DWORD timerToleranceMs = 0;
     inline int inputDelayFrames = 0;
     inline BOOL startEnabled = FALSE;
+    inline BOOL proportionalPanning = FALSE;
 
     inline DWORD hotkeyToggleMag = 0;
     inline DWORD hotkeyZoomIn = 0;
@@ -32,8 +33,9 @@ namespace Config
         {
             try
             {
-                outArray[count] = std::stof(token);
-                count++;
+                float magFactor = std::stof(token);
+                if (magFactor <= 1.0f || magFactor > 100.0f) { continue; } // ignore nonsense magnification factors
+                outArray[count++] = magFactor;
             }
             catch (...) { /* Skip parsing errors */ }
         }
@@ -63,12 +65,14 @@ namespace Config
         timerToleranceMs             = ReadDword(L"Settings", L"TimerToleranceMs", L"2", iniPath, 10);
         inputDelayFrames = GetPrivateProfileIntW(L"Settings", L"InputDelayFrames", 1, iniPath.c_str());
         startEnabled     = GetPrivateProfileIntW(L"Settings", L"StartEnabled", 0, iniPath.c_str());
+        proportionalPanning = GetPrivateProfileIntW(L"Settings", L"ProportionalPanning", 0, iniPath.c_str());
 
         timerIntervalMs             = max(0, min(timerIntervalMs, 10000));
         timerIntervalAfterEnableMs  = max(0, min(timerIntervalAfterEnableMs, 10000));
         timerToleranceMs            = max(0, min(timerToleranceMs, 10000));
         inputDelayFrames            = max(0, min(inputDelayFrames, 10)) + 1;
         startEnabled                = max(0, min(startEnabled, 1));
+        proportionalPanning         = max(0, min(proportionalPanning, 1));
 
         wchar_t curveBuffer[256];
         GetPrivateProfileStringW(L"Settings", L"MagnificationCurve",

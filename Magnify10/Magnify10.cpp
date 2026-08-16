@@ -108,7 +108,7 @@ int APIENTRY WinMain(
 
     // initialize lens as disabled
     ShowWindow(hwndHost, SW_HIDE);
-    Global::enabled = FALSE;
+    Global::showLens = FALSE;
     Global::panningEnabled = FALSE;
 
     // Create notification object for the task tray icon
@@ -146,8 +146,7 @@ int APIENTRY WinMain(
         DispatchMessage(&msg);
     }
 
-    // Shut down.
-    Global::enabled = FALSE;
+    DisableMagnifier();
 
     if (hkb != NULL)
     {
@@ -201,7 +200,7 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         PostMessage(hwndHost, WM_DESTROY, 0, 0);
         break;
     case WM_DESTROY:
-        Global::enabled = FALSE;
+        DisableMagnifier();
         PostQuitMessage(0);
         break;
 
@@ -259,7 +258,7 @@ BOOL SetupHostWindow(HINSTANCE hInst)
 VOID CALLBACK TimerTickEvent(PTP_CALLBACK_INSTANCE, VOID* context, PTP_TIMER)
 {
     RefreshMagnifier();
-    if (Global::enabled) // Reset timer to expire one time at next interval
+    if (Global::showLens) // Reset timer to expire one time at next interval
     {
         SetThreadpoolTimer(refreshTimer, &timerDueTime, 0, Config::timerToleranceMs);
     }
@@ -268,9 +267,13 @@ VOID CALLBACK TimerTickEvent(PTP_CALLBACK_INSTANCE, VOID* context, PTP_TIMER)
 VOID UpdateHostSize()
 {
     Global::UpdateLensPosition();
-    magManager->RefreshMagnifier();
-    magManager->RefreshMagnifier();
+    Global::UpdatePanningMousePoint(
+       magManager->GetMagFactor(),
+       magManager->GetMagFactor(),
+       0, 0);
 
+    magManager->RefreshMagnifier();
+    magManager->RefreshMagnifier();
     SetWindowPos(hwndHost, HWND_TOPMOST,
         Global::lensPosition.x, Global::lensPosition.y,
         Global::lensSize.cx, Global::lensSize.cy, // width|height of window
@@ -302,7 +305,7 @@ VOID RefreshMagnifier()
 VOID DisableMagnifier()
 {
     ShowWindow(hwndHost, SW_HIDE);
-    Global::enabled = FALSE;
+    Global::showLens = FALSE;
     SetThreadpoolTimer(refreshTimer, nullptr, 0, Config::timerToleranceMs); // Stop the refresh timer
 
     // reset any panning that had been done
@@ -322,14 +325,14 @@ VOID EnableMagnifier()
             SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOREDRAW | (SWP_NOMOVE * Global::panningEnabled));
     }
 
-    Global::enabled = TRUE;
+    Global::showLens = TRUE;
     SetThreadpoolTimer(refreshTimer, &timerDueTimeAfterEnable, 0, Config::timerToleranceMs); // Start the refresh timer
     ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
 }
 
 VOID ToggleMagnifier()
 {
-    if (Global::enabled) { DisableMagnifier(); }
+    if (Global::showLens) { DisableMagnifier(); }
     else { EnableMagnifier(); }
 }
 
@@ -378,6 +381,7 @@ VOID StartPanMouse()
 
     ClipCursor(&mouseBoundary); // locks mouse movement
     MagShowSystemCursor(FALSE);
+    Global::mouseLockPoint = Global::mousePoint;
     Global::panningEnabled = TRUE;
 }
 
@@ -390,8 +394,6 @@ VOID StopPanMouse()
     }
 
     Global::panningEnabled = FALSE;
-    Global::panOffset.x = 0;
-    Global::panOffset.y = 0;
     MagShowSystemCursor(TRUE);
     ClipCursor(NULL); // unlocks mouse movement
 }
@@ -416,7 +418,7 @@ VOID InitHotkeyMap()
     hotkeyHandlers[Config::hotkeyZoomIn] = [](WPARAM wParam) -> BOOL
         {
             KEYDOWN_ZOOM_IN = (wParam == WM_KEYDOWN);
-            if (KEYDOWN_ZOOM_IN && !Global::enabled) { EnableMagnifier(); }
+            if (KEYDOWN_ZOOM_IN && !Global::showLens) { EnableMagnifier(); }
             return TRUE;
         };
 
@@ -431,7 +433,7 @@ VOID InitHotkeyMap()
             KEYDOWN_INCREASE_LENS = (wParam == WM_KEYDOWN);
             if (KEYDOWN_INCREASE_LENS && !KEYDOWN_DECREASE_LENS)
             {
-                if (!Global::enabled) { EnableMagnifier(); }
+                if (!Global::showLens) { EnableMagnifier(); }
                 else if (Global::UpdateLensSize())
                 {
                     UpdateHostSize();
@@ -445,7 +447,7 @@ VOID InitHotkeyMap()
             KEYDOWN_DECREASE_LENS = (wParam == WM_KEYDOWN);
             if (KEYDOWN_DECREASE_LENS && !KEYDOWN_INCREASE_LENS)
             {
-                if (!Global::enabled) { EnableMagnifier(); }
+                if (!Global::showLens) { EnableMagnifier(); }
                 else if (Global::UpdateLensSize(-1))
                 {
                     UpdateHostSize();
@@ -460,7 +462,7 @@ VOID InitHotkeyMap()
             if (keyDown != KEYDOWN_PAN_MOUSE)
             {
                 KEYDOWN_PAN_MOUSE = keyDown;
-                if (Global::enabled)
+                if (Global::showLens)
                 {
                     if (KEYDOWN_PAN_MOUSE && !Global::panningEnabled)
                     {
@@ -477,7 +479,7 @@ VOID InitHotkeyMap()
 
     hotkeyHandlers[Config::hotkeyTogglePanMouse] = [](WPARAM wParam) -> BOOL
         {
-            if (wParam == WM_KEYDOWN && !KEYDOWN_TOGGLE_PAN_MOUSE && !KEYDOWN_PAN_MOUSE && Global::enabled)
+            if (wParam == WM_KEYDOWN && !KEYDOWN_TOGGLE_PAN_MOUSE && !KEYDOWN_PAN_MOUSE && Global::showLens)
             {
                 if (!Global::panningEnabled) { StartPanMouse(); }
                 else { StopPanMouse(); }
@@ -508,7 +510,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode != HC_ACTION || wParam != WM_MOUSEMOVE ||
-        !Global::panningEnabled || !Global::enabled)
+        !Global::panningEnabled || !Global::showLens)
     {
         return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
     }
@@ -516,7 +518,11 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
     MSLLHOOKSTRUCT* mouseInfo = (MSLLHOOKSTRUCT*)lParam;
     if (mouseInfo->pt.x != Global::mousePoint.x || mouseInfo->pt.y != Global::mousePoint.y)
     {
-        Global::UpdatePanOffset(magManager->GetMagFactor(), mouseInfo->pt.x, mouseInfo->pt.y);
+        Global::UpdatePanningMousePoint(
+            magManager->GetMagFactor(),
+            magManager->GetMagFactor(),
+            mouseInfo->pt.x - Global::mouseLockPoint.x,
+            mouseInfo->pt.y - Global::mouseLockPoint.y);
     }
     
     return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
