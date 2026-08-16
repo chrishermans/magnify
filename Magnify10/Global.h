@@ -30,74 +30,79 @@ namespace Global {
         screenSize.cx = GetSystemMetrics(SM_CXSCREEN);
         screenSize.cy = GetSystemMetrics(SM_CYSCREEN);
 
-        Global::lensSize.cx = (int)(Global::screenSize.cx * INIT_LENS_WIDTH_FACTOR);
-        Global::lensSize.cy = (int)(Global::screenSize.cy * INIT_LENS_HEIGHT_FACTOR);
-        Global::lensSizeIncrement.cx = (int)(Global::screenSize.cx * INIT_LENS_RESIZE_WIDTH_FACTOR);
-        Global::lensSizeIncrement.cy = (int)(Global::screenSize.cy * INIT_LENS_RESIZE_HEIGHT_FACTOR);
-        Global::lensSizeLimit.cx = (int)(Global::screenSize.cx * LENS_MAX_WIDTH_FACTOR);
-        Global::lensSizeLimit.cy = (int)(Global::screenSize.cy * LENS_MAX_HEIGHT_FACTOR);
+        lensSize.cx = (int)(screenSize.cx * INIT_LENS_WIDTH_FACTOR);
+        lensSize.cy = (int)(screenSize.cy * INIT_LENS_HEIGHT_FACTOR);
+        lensSizeIncrement.cx = (int)(screenSize.cx * INIT_LENS_RESIZE_WIDTH_FACTOR);
+        lensSizeIncrement.cy = (int)(screenSize.cy * INIT_LENS_RESIZE_HEIGHT_FACTOR);
+        lensSizeLimit.cx = (int)(screenSize.cx * LENS_MAX_WIDTH_FACTOR);
+        lensSizeLimit.cy = (int)(screenSize.cy * LENS_MAX_HEIGHT_FACTOR);
     }
 
     inline BOOL UpdateLensSize(float incrementFactor = 1.0f)
     {
-        SIZE newSize = { Global::lensSize.cx + Global::lensSizeIncrement.cx * incrementFactor,
-                         Global::lensSize.cy + Global::lensSizeIncrement.cy * incrementFactor };
-        if (newSize.cx > Global::lensSizeLimit.cx || newSize.cy > Global::lensSizeLimit.cy ||
-            newSize.cx <= Global::lensSizeIncrement.cx || newSize.cy <= Global::lensSizeIncrement.cy)
+        SIZE newSize = { lensSize.cx + lensSizeIncrement.cx * incrementFactor,
+                         lensSize.cy + lensSizeIncrement.cy * incrementFactor };
+        if (newSize.cx > lensSizeLimit.cx || newSize.cy > lensSizeLimit.cy ||
+            newSize.cx <= lensSizeIncrement.cx || newSize.cy <= lensSizeIncrement.cy)
         {
             return FALSE;
         }
 
-        Global::lensSize = newSize;
+        lensSize = newSize;
         return TRUE;
     }
 
     inline VOID UpdatePanningMousePoint(float magFactor, float newMagFactor, int dx, int dy)
     {
-        if (!Global::panningEnabled) { return; }
+        if (!panningEnabled) { return; }
 
         if (Config::proportionalPanning)
         {
-            int newPanX = Global::mousePoint.x + dx;
-            int newPanY = Global::mousePoint.y + dy;
-            Global::mousePoint.x = max(0, min(newPanX, Global::screenSize.cx));
-            Global::mousePoint.y = max(0, min(newPanY, Global::screenSize.cy));
+            int newPanX = mousePoint.x + dx;
+            int newPanY = mousePoint.y + dy;
+            int minPanX = 0;
+            int minPanY = 0;
+            int maxPanX = minPanX + screenSize.cx;
+            int maxPanY = minPanY + screenSize.cx;
+
+            mousePoint.x = max(minPanX, min(newPanX, maxPanX));
+            mousePoint.y = max(minPanY, min(newPanY, maxPanY));
         }
         else
         {
-            float lensCenterX = Global::lensPosition.x + (Global::lensSize.cx / 2);
-            float lensCenterY = Global::lensPosition.y + (Global::lensSize.cy / 2);
+            float lensCenterX = lensPosition.x + (lensSize.cx / 2);
+            float lensCenterY = lensPosition.y + (lensSize.cy / 2);
 
             if (magFactor != newMagFactor)
             {
                 float zoomRatio = (newMagFactor / magFactor) * ((magFactor - 1.0f) / (newMagFactor - 1.0f));
-                Global::mousePoint.x = lensCenterX + (Global::mousePoint.x - lensCenterX) * zoomRatio;
-                Global::mousePoint.y = lensCenterY + (Global::mousePoint.y - lensCenterY) * zoomRatio;
+                mousePoint.x = lensCenterX + (mousePoint.x - lensCenterX) * zoomRatio;
+                mousePoint.y = lensCenterY + (mousePoint.y - lensCenterY) * zoomRatio;
             }
 
-            float newPanX = Global::mousePoint.x + dx;
-            float newPanY = Global::mousePoint.y + dy;
+            float newPanX = mousePoint.x + dx;
+            float newPanY = mousePoint.y + dy;
 
             float denom = newMagFactor - 1.0f;
             float scale = newMagFactor / denom;
             float minPanX = -lensCenterX / denom;
             float minPanY = -lensCenterY / denom;
-            float maxPanX = minPanX + Global::screenSize.cx * scale;
-            float maxPanY = minPanY + Global::screenSize.cy * scale;
+            float maxPanX = minPanX + screenSize.cx * scale;
+            float maxPanY = minPanY + screenSize.cy * scale;
 
-            Global::mousePoint.x = max(minPanX, min(newPanX, maxPanX));
-            Global::mousePoint.y = max(minPanY, min(newPanY, maxPanY));
+            mousePoint.x = max(minPanX, min(newPanX, maxPanX));
+            mousePoint.y = max(minPanY, min(newPanY, maxPanY));
         }
     }
 
     inline VOID UpdateMousePoint()
     {
-        if (Global::panningEnabled) { return; }
+        if (panningEnabled) { return; }
 
         POINT newMousePoint;
         if (GetCursorPos(&newMousePoint))
         {
-            Global::mousePoint = newMousePoint;
+            mousePoint = newMousePoint;
         }
     }
 
@@ -105,24 +110,24 @@ namespace Global {
     {
         UpdateMousePoint();
 
-        int newX = (Global::panningEnabled ? Global::mouseLockPoint.x : Global::mousePoint.x) - (Global::lensSize.cx / 2) - 1;
-        int newY = (Global::panningEnabled ? Global::mouseLockPoint.y : Global::mousePoint.y) - (Global::lensSize.cy / 2) - 1;
-        if (Global::lensPosition.x == newX && Global::lensPosition.y == newY)
+        int newX = (panningEnabled ? mouseLockPoint.x : mousePoint.x) - (lensSize.cx / 2) - 1;
+        int newY = (panningEnabled ? mouseLockPoint.y : mousePoint.y) - (lensSize.cy / 2) - 1;
+        if (lensPosition.x == newX && lensPosition.y == newY)
         {
             return FALSE;
         }
 
         // Limit the new x|y by screen dimensions
-        newX = max(0, min(newX, Global::screenSize.cx - Global::lensSize.cx));
-        newY = max(0, min(newY, Global::screenSize.cy - Global::lensSize.cy));
+        newX = max(0, min(newX, screenSize.cx - lensSize.cx));
+        newY = max(0, min(newY, screenSize.cy - lensSize.cy));
 
-        if (Global::lensPosition.x == newX && Global::lensPosition.y == newY)
+        if (lensPosition.x == newX && lensPosition.y == newY)
         {
             return FALSE;
         }
 
-        Global::lensPosition.x = newX;
-        Global::lensPosition.y = newY;
+        lensPosition.x = newX;
+        lensPosition.y = newY;
         return TRUE;
     }
 
