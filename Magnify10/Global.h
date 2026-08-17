@@ -21,6 +21,7 @@ namespace Global {
     inline POINT lensPosition;
     inline POINT mousePoint;
     inline POINT mouseLockPoint;
+    inline POINT panOffset;
     inline BOOL lensEnabled;
     inline BOOL panningEnabled;
 

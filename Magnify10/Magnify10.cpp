@@ -24,6 +24,10 @@ BOOL KEYDOWN_INCREASE_LENS = FALSE;
 BOOL KEYDOWN_DECREASE_LENS = FALSE;
 BOOL KEYDOWN_PAN_MOUSE = FALSE;
 BOOL KEYDOWN_TOGGLE_PAN_MOUSE = FALSE;
+BOOL KEYDOWN_PAN_UP = FALSE;
+BOOL KEYDOWN_PAN_DOWN = FALSE;
+BOOL KEYDOWN_PAN_LEFT = FALSE;
+BOOL KEYDOWN_PAN_RIGHT = FALSE;
 
 #pragma endregion
 
@@ -73,8 +77,8 @@ VOID                InitHotkeyMap();
 VOID                UpdateHostSize();
 VOID                RefreshMagnifier();
 BOOL                HandleKeyStates();
-VOID                StartPanMouse();
-VOID                StopPanMouse();
+VOID                StartPanning();
+VOID                StopPanning();
 
 VOID                ToggleMagnifier();
 VOID                EnableMagnifier();
@@ -310,7 +314,7 @@ VOID DisableMagnifier()
     SetThreadpoolTimer(refreshTimer, nullptr, 0, Config::timerToleranceMs); // Stop the refresh timer
 
     // reset any panning that had been done
-    StopPanMouse();
+    StopPanning();
 }
 
 VOID EnableMagnifier()
@@ -361,13 +365,17 @@ BOOL HandleKeyStates()
         return TRUE;
     }
 
+    Global::panOffset.y -= Config::panIncrementY * KEYDOWN_PAN_UP;
+    Global::panOffset.y += Config::panIncrementY * KEYDOWN_PAN_DOWN;
+    Global::panOffset.x -= Config::panIncrementX * KEYDOWN_PAN_LEFT;
+    Global::panOffset.x += Config::panIncrementX * KEYDOWN_PAN_RIGHT;
     frameCounter = 0;
     return FALSE;
 }
 
 #pragma endregion
 
-VOID StartPanMouse()
+VOID StartPanning()
 {
     if (hMouseHook == NULL)
     {
@@ -386,7 +394,7 @@ VOID StartPanMouse()
     Global::panningEnabled = TRUE;
 }
 
-VOID StopPanMouse()
+VOID StopPanning()
 {
     if (hMouseHook != NULL)
     {
@@ -394,6 +402,8 @@ VOID StopPanMouse()
         hMouseHook = NULL;
     }
 
+    Global::panOffset.x = 0;
+    Global::panOffset.y = 0;
     Global::panningEnabled = FALSE;
     MagShowSystemCursor(TRUE);
     ClipCursor(NULL); // unlocks mouse movement
@@ -467,11 +477,11 @@ VOID InitHotkeyMap()
                 {
                     if (KEYDOWN_PAN_MOUSE && !Global::panningEnabled)
                     {
-                        StartPanMouse();
+                        StartPanning();
                     }
                     else if (!KEYDOWN_PAN_MOUSE && Global::panningEnabled)
                     {
-                        StopPanMouse();
+                        StopPanning();
                     }
                 }
             }
@@ -482,12 +492,34 @@ VOID InitHotkeyMap()
         {
             if (wParam == WM_KEYDOWN && !KEYDOWN_TOGGLE_PAN_MOUSE && !KEYDOWN_PAN_MOUSE && Global::lensEnabled)
             {
-                if (!Global::panningEnabled) { StartPanMouse(); }
-                else { StopPanMouse(); }
+                if (!Global::panningEnabled) { StartPanning(); }
+                else { StopPanning(); }
             }
             KEYDOWN_TOGGLE_PAN_MOUSE = (wParam == WM_KEYDOWN);
             return TRUE;
         };
+
+    hotkeyHandlers[Config::hotkeyPanUp] = [](WPARAM wParam) -> BOOL
+        {
+            KEYDOWN_PAN_UP = (wParam == WM_KEYDOWN);
+            return TRUE;
+        };
+    hotkeyHandlers[Config::hotkeyPanDown] = [](WPARAM wParam) -> BOOL
+        {
+            KEYDOWN_PAN_DOWN = (wParam == WM_KEYDOWN);
+            return TRUE;
+        };
+    hotkeyHandlers[Config::hotkeyPanLeft] = [](WPARAM wParam) -> BOOL
+        {
+            KEYDOWN_PAN_LEFT = (wParam == WM_KEYDOWN);
+            return TRUE;
+        };
+    hotkeyHandlers[Config::hotkeyPanRight] = [](WPARAM wParam) -> BOOL
+        {
+            KEYDOWN_PAN_RIGHT = (wParam == WM_KEYDOWN);
+            return TRUE;
+        };
+
 }
 
 LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)

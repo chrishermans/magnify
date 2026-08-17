@@ -14,6 +14,8 @@ namespace Config
     inline int inputDelayFrames = 0;
     inline BOOL startEnabled = FALSE;
     inline BOOL proportionalPanning = FALSE;
+    inline int panIncrementX = 0;
+    inline int panIncrementY = 0;
 
     inline DWORD hotkeyToggleMag = 0;
     inline DWORD hotkeyZoomIn = 0;
@@ -22,6 +24,10 @@ namespace Config
     inline DWORD hotkeyDecreaseLens = 0;
     inline DWORD hotkeyPanMouse = 0;
     inline DWORD hotkeyTogglePanMouse = 0;
+    inline DWORD hotkeyPanUp = 0;
+    inline DWORD hotkeyPanDown = 0;
+    inline DWORD hotkeyPanLeft = 0;
+    inline DWORD hotkeyPanRight = 0;
 
     inline int ParseFloatArray(const std::wstring& wstr, wchar_t delimiter, float* outArray, int maxSize)
     {
@@ -66,6 +72,8 @@ namespace Config
         inputDelayFrames = GetPrivateProfileIntW(L"Settings", L"InputDelayFrames", 1, iniPath.c_str());
         startEnabled     = GetPrivateProfileIntW(L"Settings", L"StartEnabled", 0, iniPath.c_str());
         proportionalPanning = GetPrivateProfileIntW(L"Settings", L"ProportionalPanning", 0, iniPath.c_str());
+        panIncrementX    = GetPrivateProfileIntW(L"Settings", L"PanIncrementX", 50, iniPath.c_str());
+        panIncrementY    = GetPrivateProfileIntW(L"Settings", L"PanIncrementY", 20, iniPath.c_str());
 
         timerIntervalMs             = max(0, min(timerIntervalMs, 10000));
         timerIntervalAfterEnableMs  = max(0, min(timerIntervalAfterEnableMs, 10000));
@@ -73,6 +81,8 @@ namespace Config
         inputDelayFrames            = max(0, min(inputDelayFrames, 10)) + 1;
         startEnabled                = max(0, min(startEnabled, 1));
         proportionalPanning         = max(0, min(proportionalPanning, 1));
+        panIncrementX               = max(1, min(panIncrementX, 1000));
+        panIncrementY               = max(1, min(panIncrementY, 1000));
 
         wchar_t curveBuffer[256];
         GetPrivateProfileStringW(L"Settings", L"MagnificationCurve",
@@ -87,5 +97,9 @@ namespace Config
         hotkeyDecreaseLens    = ReadDword(L"Keybinds", L"DecreaseLens", L"0x80", iniPath, 16);
         hotkeyPanMouse        = ReadDword(L"Keybinds", L"PanMouse", L"0x82", iniPath, 16);
         hotkeyTogglePanMouse  = ReadDword(L"Keybinds", L"TogglePanMouse", L"0x83", iniPath, 16);
+        hotkeyPanUp           = ReadDword(L"Keybinds", L"PanUp", L"0x81", iniPath, 16);
+        hotkeyPanDown         = ReadDword(L"Keybinds", L"PanDown", L"0x80", iniPath, 16);
+        hotkeyPanLeft         = ReadDword(L"Keybinds", L"PanLeft", L"0x82", iniPath, 16);
+        hotkeyPanRight        = ReadDword(L"Keybinds", L"PanRight", L"0x83", iniPath, 16);
     }
 }

@@ -53,8 +53,8 @@ public:
         // Proportional viewport | Bounded lens window
         // Sync the viewport origin based on the lensPosition
         // This maintains 1:1 cursor-to-content alignment even when lens is bounded by screen edges
-        int left = Global::mousePoint.x - static_cast<int>((Global::mousePoint.x - Global::lensPosition.x) / _magFactor);
-        int top = Global::mousePoint.y - static_cast<int>((Global::mousePoint.y - Global::lensPosition.y) / _magFactor);
+        int left = Global::panOffset.x + Global::mousePoint.x - static_cast<int>((Global::mousePoint.x - Global::lensPosition.x) / _magFactor);
+        int top = Global::panOffset.y + Global::mousePoint.y - static_cast<int>((Global::mousePoint.y - Global::lensPosition.y) / _magFactor);
 
         // Rectangle of screen that is magnified.
         RECT sourceRect;
