@@ -28,6 +28,7 @@ namespace Config
     inline DWORD hotkeyPanDown = 0;
     inline DWORD hotkeyPanLeft = 0;
     inline DWORD hotkeyPanRight = 0;
+    inline DWORD hotkeyResetScreenSize = 0;
 
     inline int ParseFloatArray(const std::wstring& wstr, wchar_t delimiter, float* outArray, int maxSize)
     {
@@ -101,5 +102,6 @@ namespace Config
         hotkeyPanDown         = ReadDword(L"Keybinds", L"PanDown", L"0x80", iniPath, 16);
         hotkeyPanLeft         = ReadDword(L"Keybinds", L"PanLeft", L"0x82", iniPath, 16);
         hotkeyPanRight        = ReadDword(L"Keybinds", L"PanRight", L"0x83", iniPath, 16);
+        hotkeyResetScreenSize = ReadDword(L"Keybinds", L"ResetScreenSize", L"0x84", iniPath, 16);
     }
 }

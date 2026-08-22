@@ -28,6 +28,7 @@ BOOL KEYDOWN_PAN_UP = FALSE;
 BOOL KEYDOWN_PAN_DOWN = FALSE;
 BOOL KEYDOWN_PAN_LEFT = FALSE;
 BOOL KEYDOWN_PAN_RIGHT = FALSE;
+BOOL KEYDOWN_RESET_SCREEN_SIZE = FALSE;
 
 #pragma endregion
 
@@ -198,6 +199,10 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         }
         break;
     }
+    case WM_DISPLAYCHANGE:
+        Global::UpdateScreenSize();
+        UpdateHostSize();
+        break;
     case WM_QUERYENDSESSION:
         PostMessage(hwndHost, WM_DESTROY, 0, 0);
         break;
@@ -520,6 +525,18 @@ VOID InitHotkeyMap()
             return TRUE;
         };
 
+    hotkeyHandlers[Config::hotkeyResetScreenSize] = [](WPARAM wParam) -> BOOL
+        {
+            bool keyDown = (wParam == WM_KEYDOWN);
+            if (keyDown && !KEYDOWN_RESET_SCREEN_SIZE)
+            {
+                Global::UpdateScreenSize();
+                UpdateHostSize();
+            }
+            KEYDOWN_RESET_SCREEN_SIZE = keyDown;
+            return TRUE;
+        };
+
 }
 
 LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -553,8 +570,8 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
         Global::UpdatePanningMousePoint(
             magManager->GetMagFactor(),
             magManager->GetMagFactor(),
-            mouseInfo->pt.x - Global::mouseLockPoint.x,
-            mouseInfo->pt.y - Global::mouseLockPoint.y);
+            (mouseInfo->pt.x - Global::mouseLockPoint.x),
+            (mouseInfo->pt.y - Global::mouseLockPoint.y));
     }
     
     return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
