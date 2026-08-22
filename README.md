@@ -16,40 +16,54 @@ After you run it, an icon will appear in the notification area.
 
 <img width="166" alt="mag10_icon" src="https://user-images.githubusercontent.com/49893805/56876198-94298400-69fa-11e9-8f84-bae10a52729c.PNG">
 
-It relies a low level keyboard hook to set up global hotkeys that are used to interact with the functionality.
+It relies a low level keyboard & mouse hook to set up global hotkeys that are used to interact with the functionality.
 
 When it is toggled on, there is a periodic timer that refreshes the magnification lens.
 
 ## How do i use it?
 
-Below is a list of global keyboard shortcut commands to control with the lens.
+Below is a list of global keyboard shortcut commands to control the lens.
 
 ### Basic functionality
-| Keyboard shortcut | Description |
+
+| Default Keyboard shortcut | Description |
 | --- | --- |
-| Clicking on the app's notification area icon | Exit |
-| Left Windows Key + \` (tilde) | Toggle lens on/off |
-| Left Windows Key + q | Increase magnification factor |
-| Left Windows Key + z | Decrease magnification factor |
-| Left Windows Key + v | Increase lens size (Down to 1/16th screen size) |
-| Left Windows Key + c | Decrease lens size (Up to screen size) |
+| Clicking on the app's notification icon | Exit |
+| F13 | Toggle lens on/off |
+| F15 | Increase magnification factor |
+| F14 | Decrease magnification factor |
+| F18 | Increase lens size (Down to 1/16th screen size) |
+| F17 | Decrease lens size (Up to screen size) |
+| F21 | Reset screen size |
 
 ### Pan functionality
 Sometimes it can be useful to move the lens source area without moving the mouse. This can be done by panning in any direction.
 
-| Keyboard shortcut | Description |
+| Default Keyboard shortcut | Description |
 | --- | --- |
-| Left Windows Key + a | Pan lens source left |
-| Left Windows Key + s | Pan lens source right |
-| Left Windows Key + w | Pan lens source up |
-| Left Windows Key + x | Pan lens source down |
+| F22 | Pan lens source left |
+| F24 | Pan lens source right |
+| F23 | Pan lens source up |
+| F20 | Pan lens source down |
+| F16 | Pan with mouse movement |
+| F19 | Toggle panning with mouse |
 
-This pan offset is reset after toggling the lens off.
+This pan offset is reset after toggling the lens off or exiting mouse panning.
 
-## Installation
+## Configuration File
 
-Because this program requires access to the Windows UI in order to properly magnify certain Windows 10 elements, it is compiled with a manifest file in order to set the uiAccess level to `true`.
+Hotkeys and settings can be changed in the `Magnify10.ini` file which goes in the same directory as the executable. All configuration is loaded at startup.
 
-However, windows will only allow such executables to run if they are signed, and reside within a secure location such as `%systemdrive%\Program Files\` for example. [More on this](https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/user-account-control-only-elevate-uiaccess-applications-that-are-installed-in-secure-locations).
+[See Magnify10.ini](Magnify10/Magnify10.ini) for available settings
 
-See SigningInstructions for details
+## Building & Installation
+
+Because this program requires access to the Windows UI in order to properly magnify certain Windows 10 elements, it should be compiled with a manifest file in order to set the `uiAccess` level to `true`.
+
+When building the project through Visual Studio, set the `uiAccess` to `true` by going to the project Properties -> Linker -> Manifest File, and setting UAC Bypass UI Protection to `Yes (/uiAccess='true')`
+
+However, windows will only allow such executables to run if they are signed, and reside within a secure location such as `%systemdrive%\Program Files\`. [More on this](https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/user-account-control-only-elevate-uiaccess-applications-that-are-installed-in-secure-locations).
+
+[See SigningInstructions](SigningInstructions.md) for details on how to sign a new build
+
+Once signed, move the executable and ini file under `%systemdrive%\Program Files\`
